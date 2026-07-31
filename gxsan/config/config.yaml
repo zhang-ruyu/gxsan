@@ -1,0 +1,57 @@
+# 股息三 (GxSan) 配置文件
+# A股股息分析与投资决策辅助工具
+
+# 默认目标股息率 (%)
+default_target_yield: 4.0
+
+# 最少分红年数
+min_dividend_years: 3
+
+# 便宜价折扣 (0.8 = 80%)
+cheap_discount: 0.8
+
+# 昂贵价溢价 (1.2 = 120%)
+expensive_premium: 1.2
+
+# 资金配置
+fund:
+  # 可用资金 (元)
+  available_fund: 0
+  # 单只股票最大持仓占比 (%)
+  max_position_pct: 30
+
+# 监控列表
+watchlist: []
+  # - code: "601398"
+  #   name: "工商银行"
+  #   target_yield: 5.0
+  #   grid_strategy:
+  #     buy_grids:
+  #       - yield: 5.5
+  #         amount: 5000
+  #       - yield: 6.0
+  #         amount: 8000
+  #       - yield: 6.5
+  #         amount: 10000
+  #       - yield: 7.0
+  #         amount: 15000
+  #       - yield: 7.5
+  #         amount: 20000
+  #     sell_grids:
+  #       - yield: 4.5
+  #         amount: 20
+  #       - yield: 4.0
+  #         amount: 30
+  #       - yield: 3.5
+  #         amount: 50
+  #       - yield: 3.0
+  #         amount: 80
+  #       - yield: 2.5
+  #         amount: 100
+
+# 投资组合
+portfolio: []
+  # - code: "601398"
+  #   name: "工商银行"
+  #   shares: 1000
+  #   avg_cost: 5.00

@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<title>GxSan 架构文档</title>
+<style>
+body{font-family:-apple-system,Segoe UI,Microsoft YaHei,sans-serif;max-width:920px;margin:40px auto;padding:0 22px;color:#222;line-height:1.7}
+h1{border-bottom:2px solid #e0e0e0;padding-bottom:.3em}
+h2{margin-top:1.8em;border-bottom:1px solid #eee;padding-bottom:.2em}
+h3{margin-top:1.2em}
+code{background:#f4f4f4;padding:.1em .4em;border-radius:3px;font-family:Consolas,monospace;font-size:.9em}
+pre{background:#1e1e1e;color:#d4d4d4;padding:14px;border-radius:6px;overflow:auto;font-family:Consolas,monospace;font-size:.85em}
+pre code{background:none;color:inherit;padding:0}
+blockquote{border-left:4px solid #4caf50;margin:1em 0;padding:.2em 1em;color:#555;background:#f9f9f9}
+ul{padding-left:1.4em}
+li{margin:.3em 0}
+strong{color:#1565c0}
+</style></head><body>
+<h1>GxSan 架构文档（ARCHITECTURE）</h1>
+<blockquote>版本：步骤3（多页面 + 规划测算落地）后</blockquote>
+<blockquote>最近更新：2026-07-31</blockquote>
+<h2>1. 总览</h2>
+<p>GxSan（股息三）是 A 股分红投资分析与决策辅助工具，落地技能 <code>a-share-dividend-investing</code> 的方法论。采用 <strong>双模块 + 单一业务真源</strong> 结构：</p>
+<ul>
+<li><strong>根模块</strong> <code>github.com/user/gxsan</code>（CLI）：<code>/c/gxsan</code></li>
+<li><strong>GUI 模块</strong> <code>github.com/user/gxsan/gui</code>（Wails 桌面端）：<code>/c/gxsan/gxsan</code></li>
+</ul>
+<p>GUI 通过 <code>go.mod</code> 的 <code>replace github.com/user/gxsan => ../</code> 直接复用根模块的 <code>internal/</code> 业务库，<strong>不在 GUI 内维护重复的 internal 副本</strong>。CLI 与 GUI 共享同一套模型、抓取、测算逻辑，只是入口不同（命令行 vs Vue 前端）。</p>
+<h2>2. 目录结构</h2>
+<pre><code>gxsan/                         # 根模块（CLI）
+├── cmd/                       # 命令行入口
+├── config/                    # 配置加载/保存（yaml）
+├── data/                      # 行情抓取 + 缓存（EastMoneyFetcher, Cache, EnrichStock）
+├── internal/
+│   ├── model/                 # 领域模型：Stock/Holding/Account/Config/Portfolio/View DTO
+│   ├── config/                # Config Manager（增删持仓/账户/生命周期）
+│   ├── data/                  # （同上层 data，内部细分）
+│   ├── report/                # 报告生成：analyze/detail/calendar → 文本或 JSON DTO
+│   ├── strategy/              # 单只股票买卖信号（DividendStrategy, cost_yield YoC）
+│   ├── plan/                  # 【步骤3新增】规划测算领域层
+│   ├── fund/                  # 资金/仓位监控（Monitor, BuildPool）
+│   └── cli/                   # 命令分发与各子命令实现
+└── gxsan/                     # GUI 模块（Wails）
+    ├── app.go                 # 薄胶水层：暴露 Wails 绑定方法
+    ├── main.go
+    ├── frontend/              # Vue3 + Vue Router + Vite
+    │   └── src/
+    │       ├── views/         # Home/Detail/Portfolio/Pension/Conversion/Calendar/Settings
+    │       ├── components/     # Sidebar/StockCard/SignalBadge
+    │       ├── router/index.js
+    │       └── wailsjs/        # wails generate module 自动生成绑定
+    └── wails.json</code></pre>
+<h2>3. 分层职责</h2>
+<h3>model（领域模型，单一真源）</h3>
+<ul>
+<li><code>stock.go</code>：<code>Stock</code>（行情+分红）、<code>Holding</code>（持仓，含 <code>Account</code> 字段）、<code>StockConfig</code></li>
+<li><code>account.go</code>：<code>Account</code> 类型 + 默认5账户（养老/教育/港美股/娱乐/打新）+ <code>LifecycleStageName</code></li>
+<li><code>config.go</code>：<code>Config</code> 增加 <code>Accounts</code>、<code>LifecycleStage</code>（1启动/2滚雪球/3自由/4收获）</li>
+<li><code>portfolio.go</code>：<code>InvestPool</code> + <code>GroupByAccount()</code> 按账户分组</li>
+<li><code>view.go</code>：<code>StockDetail</code> JSON DTO（history / yield_on_cost / account / 估值区间 / 网格等），对齐 Detail.vue 字段；<code>PortfolioItem</code> 增加 <code>Account</code>/<code>YieldOnCost</code></li>
+</ul>
+<h3>data（抓取与缓存）</h3>
+<ul>
+<li><code>enrich.go</code>：<code>EnrichStock(cache, code, forceRefresh bool)</code></li>
+</ul>
+<p>- 命中 24h 缓存且 <code>forceRefresh=false</code> → 直接返回 - <code>forceRefresh=true</code> → 跳过缓存读取（仍写回），用于「同一支股票随时多次刷新」</p>
+<h3>report（报告/视图模型）</h3>
+<ul>
+<li><code>detail.go</code>：<code>GenerateStockDetail(code, forceRefresh) (*model.StockDetail, error)</code> + <code>FormatStockDetailText(...)</code> 供 CLI 文本输出</li>
+<li><code>report.go</code>：<code>GenerateAnalysisReport(forceRefresh bool)</code></li>
+<li>前后端契约：<strong>Detail 返回 <code>*model.StockDetail</code> JSON</strong>，前端 <code>Detail.vue</code> 直接消费（早期返回纯文本是坏的，已修复）</li>
+</ul>
+<h3>strategy（单只信号）</h3>
+<ul>
+<li><code>cost_yield.go</code>：<code>CalculateYoC(avgCost, dps)</code> 成本股息率</li>
+<li><code>DividendStrategy.Analyze</code>：买卖信号（WATCH/BUY/SELL…）</li>
+</ul>
+<h3>plan（规划测算，步骤3新增，独立于 strategy）</h3>
+<ul>
+<li><code>compound.go</code>：<code>CompoundSchedule</code> 定投复利模拟（月定投×年数×年化，分红100%复投已内含于复利）</li>
+<li><code>pension.go</code>：<code>PensionPlan</code> 目标倒推所需本金（年分红÷成本股息率5/6/7%）+ <code>RetirementNote</code> 退休提款阶段建议</li>
+<li><code>conversion.go</code>：<code>CompareStocks</code> 个股多维对比（含 YoC）+ <code>RealEstateToEquity</code> 房产→股权现金流对比</li>
+</ul>
+<h3>fund（资金监控）</h3>
+<ul>
+<li><code>Monitor.BuildPool</code>：统一计算持仓市值/成本/盈亏/最大仓位</li>
+</ul>
+<h3>cli（命令入口）</h3>
+<ul>
+<li><code>commands.go</code>：分发 add/list/analyze/detail/pension/compare/yoc/account/config…</li>
+<li><code>cmd_*.go</code>：各子命令；<code>--refresh</code> 解析；帮助用 <code>fmt.Print</code> 输出（避免「年化%」被当格式符）</li>
+</ul>
+<h2>4. GUI 绑定（app.go）</h2>
+<p><code>app.go</code> 是薄胶水层，所有逻辑委托给 internal。步骤3新增绑定：</p>
+<ul>
+<li><code>RefreshStock(code)</code> → 强制刷新（绕过缓存），同一支股票可随时多次刷新</li>
+<li><code>GetPension(monthly, invest, years, rate)</code></li>
+<li><code>CompareStocks(codeA, codeB)</code>、<code>RealEstateToEquity(principal, reYield, eqYield)</code></li>
+<li><code>GetAccounts</code> / <code>AddAccount</code> / <code>RemoveAccount</code> / <code>AssignAccount</code> / <code>SetLifecycleStage</code></li>
+<li><code>GetPortfolio</code> 增加 <code>account</code> / <code>yield_on_cost</code></li>
+<li><code>GetStockDetail</code> 返回 JSON（契约对齐）</li>
+</ul>
+<p>运行 <code>wails generate module</code> 后，<code>frontend/src/wailsjs/</code> 自动生成 <code>RefreshStock</code>/<code>GetPension</code> 等绑定（App.js / App.d.ts）。</p>
+<h2>5. 前端多页面</h2>
+<ul>
+<li>路由（<code>router/index.js</code>）：<code>/</code>（Home）、<code>/detail/:code</code>（Detail）、<code>/portfolio</code>（Portfolio）、<code>/pension</code>（养老测算）、<code>/conversion</code>（资产转换）、<code>/calendar</code>、<code>/settings</code></li>
+<li>侧栏（<code>Sidebar.vue</code>）：导航菜单</li>
+<li><strong>Detail</strong>：刷新按钮调用 <code>RefreshStock(force)</code>；展示 YoC、所属账户</li>
+<li><strong>Portfolio</strong>：按账户分组展示 + YoC 列</li>
+<li><strong>Pension</strong>：目标月分红/月定投/年数/年化 → 倒推本金 + 定投模拟</li>
+<li><strong>Conversion</strong>：房产本金/租售比/股息率 → 现金流倍数对比</li>
+</ul>
+<h2>6. 数据流（CLI 与 GUI 共用）</h2>
+<pre><code>用户(CLI参数 / Vue点击)
+   │
+   ▼
+CLI App.Run  /  GUI App 方法
+   │  都调用 internal/*
+   ▼
+report.Reporter / plan.* / fund.Monitor / strategy.*
+   │
+   ▼
+data.EnrichStock (EastMoney 行情 + 24h 缓存, forceRefresh 可绕过)
+   │
+   ▼
+model.* (领域模型)  ←→  config.Manager (yaml 持久化)</code></pre>
+<h2>7. 构建与运行</h2>
+<pre><code># CLI
+cd /c/gxsan &amp;&amp; go build ./... &amp;&amp; go run ./cmd
+
+# GUI（需 Wails）
+cd /c/gxsan/gxsan &amp;&amp; wails dev        # 开发预览
+cd /c/gxsan/gxsan &amp;&amp; wails build      # 打包（自动 vite build + go build）
+
+# 仅前端构建校验
+cd /c/gxsan/gxsan/frontend &amp;&amp; npm run build</code></pre>
+</body></html>

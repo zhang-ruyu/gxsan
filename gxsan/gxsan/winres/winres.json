@@ -1,0 +1,60 @@
+{
+  "RT_GROUP_ICON": {
+    "APP": {
+      "0000": [
+        "appicon.ico"
+      ]
+    }
+  },
+  "RT_MANIFEST": {
+    "#1": {
+      "0409": {
+        "identity": {
+          "name": "gxsan",
+          "version": "1.0.0.0"
+        },
+        "description": "股息三 - A股股息分析与投资决策辅助工具",
+        "minimum-os": "win7",
+        "execution-level": "as invoker",
+        "ui-access": false,
+        "auto-elevate": false,
+        "dpi-awareness": "system",
+        "disable-theming": false,
+        "disable-window-filtering": false,
+        "high-resolution-scrolling-aware": false,
+        "ultra-high-resolution-scrolling-aware": false,
+        "long-path-aware": false,
+        "printer-driver-isolation": false,
+        "gdi-scaling": false,
+        "segment-heap": false,
+        "use-common-controls-v6": false
+      }
+    }
+  },
+  "RT_VERSION": {
+    "#1": {
+      "0000": {
+        "fixed": {
+          "file_version": "1.0.0.0",
+          "product_version": "1.0.0.0"
+        },
+        "info": {
+          "0409": {
+            "Comments": "A股股息分析工具",
+            "CompanyName": "股息三",
+            "FileDescription": "股息三 - A股股息分析与投资决策辅助工具",
+            "FileVersion": "1.0.0.0",
+            "InternalName": "gxsan",
+            "LegalCopyright": "© 2026 股息三",
+            "LegalTrademarks": "",
+            "OriginalFilename": "gxsan.exe",
+            "PrivateBuild": "",
+            "ProductName": "股息三",
+            "ProductVersion": "1.0.0.0",
+            "SpecialBuild": ""
+          }
+        }
+      }
+    }
+  }
+}
