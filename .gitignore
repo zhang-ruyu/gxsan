@@ -5,3 +5,9 @@
 .DS_Store
 Thumbs.db
 .obsidian/plugins/*/data.json
+
+# 仅保留源码：Obsidian 配置整目录、Wails 构建产物、本地笔记不进版本库
+.obsidian/
+*.syso
+*.base
+欢迎.md
