@@ -1,6 +1,7 @@
 package data
 
 import (
+	"sync"
 	"time"
 
 	"github.com/user/gxsan/internal/model"
@@ -10,6 +11,7 @@ import (
 // 连续分红年数、当前股息率），结果写入缓存。
 // CLI 与 GUI 共用这一条数据补全路径，避免重复实现。
 // forceRefresh 为 true 时跳过缓存读取，强制重新抓数（用于「随时刷新」）。
+// 内部对「行情」与「分红历史」两个独立 HTTP 请求并发发起，单只更快。
 func (f *EastMoneyFetcher) EnrichStock(cache *Cache, code string, forceRefresh bool) (*model.Stock, error) {
 	if cache != nil && !forceRefresh {
 		if cd, err := cache.Get(code); err == nil && cd.Stock != nil {
@@ -17,13 +19,30 @@ func (f *EastMoneyFetcher) EnrichStock(cache *Cache, code string, forceRefresh b
 		}
 	}
 
-	stock, err := f.GetStock(code)
-	if err != nil {
-		return nil, err
-	}
+	var (
+		stock     *model.Stock
+		stockErr  error
+		dividends []model.DividendRecord
+		divErr    error
+	)
 
-	dividends, err := f.GetDividendHistory(code)
-	if err == nil && len(dividends) > 0 {
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		stock, stockErr = f.GetStock(code)
+	}()
+	go func() {
+		defer wg.Done()
+		dividends, divErr = f.GetDividendHistory(code)
+	}()
+	wg.Wait()
+
+	// 行情是必需的；分红缺失不致命（部分股票可能暂无分红记录）。
+	if stockErr != nil {
+		return nil, stockErr
+	}
+	if divErr == nil && len(dividends) > 0 {
 		stock.DividendPerShare = annualDividend(dividends)
 		stock.LastDivDate = dividends[0].Date
 		if len(dividends) > 1 {
@@ -39,6 +58,41 @@ func (f *EastMoneyFetcher) EnrichStock(cache *Cache, code string, forceRefresh b
 	}
 
 	return stock, nil
+}
+
+// maxEnrichConcurrency 并发抓取上限，避免一次性打爆行情接口。
+const maxEnrichConcurrency = 8
+
+// EnrichStocks 并发补全多只股票行情+分红数据，返回 code->*model.Stock 映射。
+// 多只股票之间并发（最多 maxEnrichConcurrency 只在飞），
+// 每只股票内部再并发抓行情与分红（见 EnrichStock）。
+// 与 EnrichStock 共享同一套缓存与错误处理语义：抓不到的股票不会出现在结果里。
+func (f *EastMoneyFetcher) EnrichStocks(cache *Cache, codes []string, forceRefresh bool) map[string]*model.Stock {
+	out := make(map[string]*model.Stock, len(codes))
+	if len(codes) == 0 {
+		return out
+	}
+
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, maxEnrichConcurrency)
+
+	for _, code := range codes {
+		wg.Add(1)
+		go func(c string) {
+			defer wg.Done()
+			sem <- struct{}{} // 获取并发配额
+			defer func() { <-sem }()
+			s, err := f.EnrichStock(cache, c, forceRefresh)
+			if err == nil {
+				mu.Lock()
+				out[c] = s
+				mu.Unlock()
+			}
+		}(code)
+	}
+	wg.Wait()
+	return out
 }
 
 // annualDividend 计算最近12个月内的每股股息总额

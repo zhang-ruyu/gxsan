@@ -23,9 +23,15 @@ func (r *Reporter) GenerateCalendar(days int) (string, error) {
 
 	totalAnnualDividend := 0.0
 
+	codes := make([]string, 0, len(r.config.Portfolio))
 	for _, holding := range r.config.Portfolio {
-		stock, err := r.fetcher.EnrichStock(r.cache, holding.Code, false)
-		if err != nil {
+		codes = append(codes, holding.Code)
+	}
+	stocks := r.fetcher.EnrichStocks(r.cache, codes, false)
+
+	for _, holding := range r.config.Portfolio {
+		stock, ok := stocks[holding.Code]
+		if !ok {
 			continue
 		}
 
@@ -59,8 +65,8 @@ func (r *Reporter) GenerateCalendar(days int) (string, error) {
 	result.WriteString(fmt.Sprintf("  ────────────────────────────────────────────────────────────────\n"))
 
 	for _, holding := range r.config.Portfolio {
-		stock, err := r.fetcher.EnrichStock(r.cache, holding.Code, false)
-		if err != nil {
+		stock, ok := stocks[holding.Code]
+		if !ok {
 			continue
 		}
 

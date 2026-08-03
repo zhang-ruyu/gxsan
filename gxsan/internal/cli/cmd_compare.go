@@ -26,10 +26,11 @@ func (a *App) handleCompare(args []string) {
 	}
 	codeA, codeB := args[0], args[1]
 
-	sa, errA := a.fetcher.EnrichStock(a.cache, codeA, false)
-	sb, errB := a.fetcher.EnrichStock(a.cache, codeB, false)
-	if errA != nil || errB != nil {
-		fmt.Printf("获取股票失败: A=%v B=%v\n", errA, errB)
+	stocks := a.fetcher.EnrichStocks(a.cache, []string{codeA, codeB}, false)
+	sa, okA := stocks[codeA]
+	sb, okB := stocks[codeB]
+	if !okA || !okB {
+		fmt.Println("获取股票失败，请检查代码或网络")
 		return
 	}
 

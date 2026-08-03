@@ -14,13 +14,12 @@ func (a *App) handleYoC(args []string) {
 		return
 	}
 
-	// 抓取行情
-	stocks := make(map[string]*model.Stock)
+	// 并发抓取行情
+	codes := make([]string, 0, len(a.configMgr.Config.Portfolio))
 	for _, h := range a.configMgr.Config.Portfolio {
-		if s, err := a.fetcher.EnrichStock(a.cache, h.Code, false); err == nil {
-			stocks[h.Code] = s
-		}
+		codes = append(codes, h.Code)
 	}
+	stocks := a.fetcher.EnrichStocks(a.cache, codes, false)
 
 	// 按账户分组
 	groups := make(map[string][]model.Holding)

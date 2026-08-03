@@ -40,15 +40,12 @@ func NewReporter(config *model.Config, fetcher *data.EastMoneyFetcher, cache *da
 func (r *Reporter) GenerateAnalysisReport(forceRefresh bool) (string, error) {
 	var result strings.Builder
 
-	// 获取所有股票数据
-	stocks := make(map[string]*model.Stock)
+	// 并发获取所有股票数据
+	codes := make([]string, 0, len(r.config.Watchlist))
 	for _, stockConfig := range r.config.Watchlist {
-		stock, err := r.fetcher.EnrichStock(r.cache, stockConfig.Code, forceRefresh)
-		if err != nil {
-			continue
-		}
-		stocks[stockConfig.Code] = stock
+		codes = append(codes, stockConfig.Code)
 	}
+	stocks := r.fetcher.EnrichStocks(r.cache, codes, forceRefresh)
 
 	// 构建投资池
 	pool := r.monitor.BuildPool(stocks)

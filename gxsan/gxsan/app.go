@@ -59,15 +59,9 @@ func toJSON(v interface{}) string {
 	return string(data)
 }
 
-// fetchStocksForCodes 批量补全股票行情+分红数据（与 CLI 共用 EnrichStock）
+// fetchStocksForCodes 批量并发补全股票行情+分红数据（与 CLI 共用 EnrichStocks）
 func (a *App) fetchStocksForCodes(codes []string) map[string]*model.Stock {
-	stocks := make(map[string]*model.Stock)
-	for _, code := range codes {
-		if s, err := a.fetcher.EnrichStock(a.cache, code, false); err == nil {
-			stocks[code] = s
-		}
-	}
-	return stocks
+	return a.fetcher.EnrichStocks(a.cache, codes, false)
 }
 
 // ========== 分析报告 ==========
@@ -180,10 +174,15 @@ func (a *App) SetAvailableFund(amount float64) error {
 
 // ========== 监控列表 ==========
 
-// GetWatchlist 获取监控列表（复用 EnrichStock + divStrategy）
+// GetWatchlist 获取监控列表（并发抓取 + divStrategy 分析）
 func (a *App) GetWatchlist() string {
-	var items []model.WatchlistItem
+	codes := make([]string, 0, len(a.configMgr.Config.Watchlist))
+	for _, sc := range a.configMgr.Config.Watchlist {
+		codes = append(codes, sc.Code)
+	}
+	stocks := a.fetcher.EnrichStocks(a.cache, codes, false)
 
+	var items []model.WatchlistItem
 	for _, sc := range a.configMgr.Config.Watchlist {
 		item := model.WatchlistItem{
 			Code:        sc.Code,
@@ -192,7 +191,7 @@ func (a *App) GetWatchlist() string {
 			Signal:      "WATCH",
 		}
 
-		if s, err := a.fetcher.EnrichStock(a.cache, sc.Code, false); err == nil {
+		if s, ok := stocks[sc.Code]; ok {
 			item.Price = s.Price
 			item.DividendYield = s.DividendYield
 			item.Signal = a.divStrategy.Analyze(s, a.configMgr.Config).Action
@@ -345,10 +344,11 @@ func (a *App) GetPension(monthly, invest float64, years int, rate float64) strin
 
 // CompareStocks 两只股票多维对比
 func (a *App) CompareStocks(codeA, codeB string) string {
-	sa, errA := a.fetcher.EnrichStock(a.cache, codeA, false)
-	sb, errB := a.fetcher.EnrichStock(a.cache, codeB, false)
-	if errA != nil || errB != nil {
-		return fmt.Sprintf(`{"error": "A=%v B=%v"}`, errA, errB)
+	stocks := a.fetcher.EnrichStocks(a.cache, []string{codeA, codeB}, false)
+	sa, okA := stocks[codeA]
+	sb, okB := stocks[codeB]
+	if !okA || !okB {
+		return fmt.Sprintf(`{"error": "获取股票失败 A=%s B=%s"}`, codeA, codeB)
 	}
 	r := plan.CompareStocks(sa, sb,
 		holdingYoC(a.configMgr.Config, codeA, sa),
