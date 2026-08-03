@@ -18,7 +18,7 @@ GUI 通过 `go.mod` 的 `replace github.com/user/gxsan => ../` 直接复用根�
 gxsan/                         # 根模块（CLI）
 ├── cmd/                       # 命令行入口
 ├── config/                    # 配置加载/保存（yaml）
-├── data/                      # 行情抓取 + 缓存（EastMoneyFetcher, Cache, EnrichStock）
+├── data/                      # 行情抓取 + 缓存（EastMoneyFetcher, Cache, EnrichStock/EnrichStocks 并发批量）
 ├── internal/
 │   ├── model/                 # 领域模型：Stock/Holding/Account/Config/Portfolio/View DTO
 │   ├── config/                # Config Manager（增删持仓/账户/生命周期）
@@ -50,7 +50,7 @@ gxsan/                         # 根模块（CLI）
 - `view.go`：`StockDetail` JSON DTO（history / yield_on_cost / account / 估值区间 / 网格等），对齐 Detail.vue 字段；`PortfolioItem` 增加 `Account`/`YieldOnCost`
 
 ### data（抓取与缓存）
-- `enrich.go`：`EnrichStock(cache, code, forceRefresh bool)`
+- `enrich.go`：`EnrichStock`（单只，内部行情+分红两次 HTTP 并发）、`EnrichStocks(codes, forceRefresh)`（多只批量并发，信号量限流上限 8）
   - 命中 24h 缓存且 `forceRefresh=false` → 直接返回
   - `forceRefresh=true` → 跳过缓存读取（仍写回），用于「同一支股票随时多次刷新」
 
