@@ -77,3 +77,29 @@ type StockDetail struct {
 	GridStrategy        *GridStrategyInfo   `json:"grid_strategy"`
 	History             []DividendHistoryItem `json:"history"`
 }
+
+// DividendSummary 分红按年/账户汇总（GUI 分红汇总页用）
+// 按自然年汇总各持仓分红金额、按账户分组汇总，便于评估分红现金流。
+type DividendSummary struct {
+	ByAccount           []AccountDividend `json:"by_account"`
+	ByYear              []YearDividend    `json:"by_year"`
+	TotalAnnualDividend float64           `json:"total_annual_dividend"` // 当前持仓年化分红总额
+	TotalMarketValue    float64           `json:"total_market_value"`
+	TotalHoldings       int               `json:"total_holdings"`
+}
+
+// AccountDividend 单账户分红汇总
+type AccountDividend struct {
+	Account        string  `json:"account"`
+	Holdings       int     `json:"holdings"`        // 持仓只数
+	Shares         int     `json:"shares"`          // 总股数
+	MarketValue    float64 `json:"market_value"`    // 市值
+	AnnualDividend float64 `json:"annual_dividend"` // 年化分红金额
+}
+
+// YearDividend 单年分红汇总
+type YearDividend struct {
+	Year          int     `json:"year"`
+	TotalDividend float64 `json:"total_dividend"` // 该年分红总额（各持仓当年每股分红×股数）
+	Holdings      int     `json:"holdings"`       // 参与该年分红的持仓只数
+}

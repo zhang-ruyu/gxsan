@@ -108,6 +108,7 @@
 
 <script>
 import { GetConfig, SetConfig, GetFundInfo, SetAvailableFund, GetWatchlist, AddWatchlist, RemoveWatchlist, UpdateWatchlist } from '../../wailsjs/go/main/App'
+import { parseJSON } from '../utils/api'
 
 export default {
   name: 'Settings',
@@ -140,7 +141,7 @@ export default {
       this.loading = true
       try {
         const configStr = await GetConfig()
-        const configData = JSON.parse(configStr)
+        const configData = parseJSON(configStr)
         this.config = {
           default_target_yield: configData.default_target_yield || 4,
           min_dividend_years: configData.min_dividend_years || 3,
@@ -149,10 +150,10 @@ export default {
         }
 
         const fundStr = await GetFundInfo()
-        this.fundInfo = JSON.parse(fundStr)
+        this.fundInfo = parseJSON(fundStr)
 
         const watchlistStr = await GetWatchlist()
-        this.watchlist = JSON.parse(watchlistStr)
+        this.watchlist = parseJSON(watchlistStr)
       } catch (error) {
         console.error('加载配置失败:', error)
       }

@@ -84,6 +84,7 @@
 
 <script>
 import { GetPension } from '../../wailsjs/go/main/App'
+import { parseJSON } from '../utils/api'
 
 export default {
   name: 'Pension',
@@ -105,7 +106,7 @@ export default {
         const raw = await GetPension(
           this.params.monthly, this.params.invest, this.params.years, this.params.rate
         )
-        const data = JSON.parse(raw)
+        const data = parseJSON(raw)
         this.result = data
         this.lifecycleStage = data.lifecycle_stage
       } catch (e) {

@@ -80,6 +80,7 @@
 
 <script>
 import { CompareStocks, RealEstateToEquity } from '../../wailsjs/go/main/App'
+import { parseJSON } from '../utils/api'
 
 export default {
   name: 'Conversion',
@@ -112,13 +113,13 @@ export default {
       if (!this.compare.codeA || !this.compare.codeB) { alert('请输入两只股票代码'); return }
       try {
         const raw = await CompareStocks(this.compare.codeA, this.compare.codeB)
-        this.compareResult = JSON.parse(raw)
+        this.compareResult = parseJSON(raw)
       } catch (e) { alert('对比失败: ' + e.message) }
     },
     async doRealEstate() {
       try {
         const raw = await RealEstateToEquity(this.re.principal, this.re.reYield, this.re.eqYield)
-        this.reResult = JSON.parse(raw)
+        this.reResult = parseJSON(raw)
       } catch (e) { alert('计算失败: ' + e.message) }
     }
   }

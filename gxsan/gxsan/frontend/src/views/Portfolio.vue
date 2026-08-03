@@ -4,6 +4,7 @@
       <h2>持仓管理</h2>
       <div class="header-actions">
         <span class="last-update" v-if="lastUpdate">最后更新: {{ lastUpdate }}</span>
+        <span class="refresh-state" v-if="refreshState">{{ refreshState }}</span>
         <button class="btn btn-secondary btn-sm" @click="refreshData">
           刷新数据
         </button>
@@ -98,6 +99,8 @@
 
 <script>
 import { GetPortfolio, AddHolding, RemoveHolding } from '../../wailsjs/go/main/App'
+import { parseJSON } from '../utils/api'
+import { isPageVisible, isMarketOpen, refreshReason } from '../utils/market'
 
 export default {
   name: 'Portfolio',
@@ -114,6 +117,7 @@ export default {
         avg_cost: 0
       },
       lastUpdate: '',
+      refreshState: '',
       refreshTimer: null
     }
   },
@@ -136,10 +140,11 @@ export default {
     },
     async refreshData() {
       try {
+        this.refreshState = refreshReason()
         console.log('开始刷新持仓数据')
         const portfolioStr = await GetPortfolio()
         console.log('获取到持仓:', portfolioStr)
-        this.holdings = JSON.parse(portfolioStr)
+        this.holdings = parseJSON(portfolioStr)
         this.lastUpdate = new Date().toLocaleTimeString('zh-CN')
       } catch (error) {
         console.error('获取持仓数据失败:', error)
@@ -193,6 +198,12 @@ export default {
         clearInterval(this.refreshTimer)
       }
       this.refreshTimer = setInterval(() => {
+        // 智能刷新：页面隐藏或非交易时段暂停
+        this.refreshState = refreshReason()
+        if (!isPageVisible() || !isMarketOpen()) {
+          console.log('自动刷新持仓跳过:', this.refreshState)
+          return
+        }
         console.log('自动刷新持仓触发')
         this.refreshData()
       }, 30000)
@@ -225,6 +236,14 @@ export default {
 .last-update {
   font-size: 12px;
   color: var(--text-muted);
+}
+
+.refresh-state {
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: #f1f5f9;
 }
 
 .text-green { color: var(--success-color); }

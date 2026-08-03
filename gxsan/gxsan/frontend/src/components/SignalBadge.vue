@@ -5,6 +5,8 @@
 </template>
 
 <script>
+import { signalClass, signalText } from '../utils/signal'
+
 export default {
   name: 'SignalBadge',
   props: {
@@ -15,22 +17,10 @@ export default {
   },
   computed: {
     signalClass() {
-      const map = {
-        'BUY': 'signal-buy',
-        'HOLD': 'signal-hold',
-        'WATCH': 'signal-watch',
-        'SELL': 'signal-sell'
-      }
-      return map[this.signal] || 'signal-watch'
+      return signalClass(this.signal)
     },
     signalText() {
-      const map = {
-        'BUY': '买入',
-        'HOLD': '持有',
-        'WATCH': '观望',
-        'SELL': '卖出'
-      }
-      return map[this.signal] || '观望'
+      return signalText(this.signal)
     }
   }
 }

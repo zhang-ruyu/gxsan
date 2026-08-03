@@ -46,6 +46,10 @@ export function GetDataDir() {
   return window['go']['main']['App']['GetDataDir']();
 }
 
+export function GetDividendSummary() {
+  return window['go']['main']['App']['GetDividendSummary']();
+}
+
 export function GetFundInfo() {
   return window['go']['main']['App']['GetFundInfo']();
 }

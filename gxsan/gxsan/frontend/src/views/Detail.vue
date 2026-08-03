@@ -8,6 +8,7 @@
       </div>
       <div class="header-actions">
         <span class="last-update" v-if="lastUpdate">最后更新: {{ lastUpdate }}</span>
+        <span class="refresh-state" v-if="refreshState">{{ refreshState }}</span>
         <button class="btn btn-secondary btn-sm" @click="refreshData(true)">
           刷新数据
         </button>
@@ -28,7 +29,7 @@
       <!-- 核心指标 -->
       <div class="metric-cards">
         <div class="metric-card">
-          <div class="metric-value" :class="getSignalClass()">{{ report.data.signal }}</div>
+          <div class="metric-value"><SignalBadge :signal="report.data.signal" /></div>
           <div class="metric-label">当前信号</div>
         </div>
         <div class="metric-card">
@@ -57,7 +58,7 @@
         <div class="valuation-grid">
           <div class="valuation-item">
             <div class="valuation-label">当前股息率</div>
-            <div class="valuation-value" :class="getSignalClass()">
+            <div class="valuation-value" :class="currentSignalClass">
               {{ report.data.latest_dividend_yield.toFixed(2) }}%
             </div>
           </div>
@@ -172,9 +173,16 @@
 
 <script>
 import { GetStockDetail, RefreshStock } from '../../wailsjs/go/main/App'
+import SignalBadge from '../components/SignalBadge.vue'
+import { signalClass } from '../utils/signal'
+import { parseJSON } from '../utils/api'
+import { isPageVisible, isMarketOpen, refreshReason } from '../utils/market'
 
 export default {
   name: 'Detail',
+  components: {
+    SignalBadge
+  },
   data() {
     return {
       loading: true,
@@ -198,6 +206,7 @@ export default {
         }
       },
       lastUpdate: '',
+      refreshState: '',
       refreshTimer: null
     }
   },
@@ -207,6 +216,10 @@ export default {
     },
     stockName() {
       return this.report.data.stock_name || this.stockCode
+    },
+    // 当前信号对应的 CSS 类名（估值区给「当前股息率」上色用）
+    currentSignalClass() {
+      return signalClass(this.report.data.signal)
     }
   },
   methods: {
@@ -215,13 +228,6 @@ export default {
     },
     formatNumber(num) {
       return num.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
-    },
-    getSignalClass() {
-      const signal = this.report.data.signal
-      if (signal === 'BUY') return 'signal-buy'
-      if (signal === 'SELL') return 'signal-sell'
-      if (signal === 'HOLD') return 'signal-hold'
-      return 'signal-watch'
     },
     isBuyActive(yieldValue) {
       return this.report.data.latest_dividend_yield >= yieldValue
@@ -232,12 +238,13 @@ export default {
     async refreshData(force) {
       this.error = null
       try {
+        this.refreshState = refreshReason()
         console.log('开始刷新股票详情:', this.stockCode, 'force=', force)
         // force=true 时绕过缓存强制重新抓数（同一支股票可随时多次刷新）
         const result = force ? await RefreshStock(this.stockCode) : await GetStockDetail(this.stockCode)
         console.log('获取到详情:', result)
         if (result) {
-          this.report = result
+          this.report = parseJSON(result)
         } else {
           this.error = '未找到股票数据'
         }
@@ -253,6 +260,12 @@ export default {
         clearInterval(this.refreshTimer)
       }
       this.refreshTimer = setInterval(() => {
+        // 智能刷新：页面隐藏或非交易时段暂停
+        this.refreshState = refreshReason()
+        if (!isPageVisible() || !isMarketOpen()) {
+          console.log('自动刷新详情跳过:', this.refreshState)
+          return
+        }
         console.log('自动刷新详情触发')
         this.refreshData()
       }, 30000)
@@ -291,6 +304,14 @@ export default {
 .last-update {
   font-size: 12px;
   color: var(--text-muted);
+}
+
+.refresh-state {
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: #f1f5f9;
 }
 
 .text-green { color: var(--success-color); }

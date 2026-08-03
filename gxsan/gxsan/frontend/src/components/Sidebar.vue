@@ -13,6 +13,10 @@
         <span class="icon"> </span>
         <span>持仓管理</span>
       </router-link>
+      <router-link to="/dividend" class="nav-item" active-class="active">
+        <span class="icon"> </span>
+        <span>分红汇总</span>
+      </router-link>
       <router-link to="/pension" class="nav-item" active-class="active">
         <span class="icon"> </span>
         <span>养老测算</span>

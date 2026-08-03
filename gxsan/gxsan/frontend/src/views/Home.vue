@@ -4,6 +4,7 @@
       <h2>分析首页</h2>
       <div class="header-actions">
         <span class="last-update" v-if="lastUpdate">最后更新: {{ lastUpdate }}</span>
+        <span class="refresh-state" v-if="refreshState">{{ refreshState }}</span>
         <button class="btn btn-secondary btn-sm" @click="refreshData">
           刷新数据
         </button>
@@ -58,6 +59,8 @@
 <script>
 import { GetWatchlist, GetFundInfo } from '../../wailsjs/go/main/App'
 import StockCard from '../components/StockCard.vue'
+import { parseJSON } from '../utils/api'
+import { isPageVisible, isMarketOpen, refreshReason } from '../utils/market'
 
 export default {
   name: 'Home',
@@ -74,6 +77,7 @@ export default {
         total_assets: 0
       },
       lastUpdate: '',
+      refreshState: '',
       refreshTimer: null
     }
   },
@@ -91,14 +95,15 @@ export default {
     },
     async refreshData() {
       try {
+        this.refreshState = refreshReason()
         console.log('开始刷新数据...')
         const watchlistStr = await GetWatchlist()
         console.log('获取到监控列表:', watchlistStr)
-        this.watchlist = JSON.parse(watchlistStr)
-        
+        this.watchlist = parseJSON(watchlistStr)
+
         const fundStr = await GetFundInfo()
         console.log('获取到资金信息:', fundStr)
-        this.fundInfo = JSON.parse(fundStr)
+        this.fundInfo = parseJSON(fundStr)
         
         this.lastUpdate = new Date().toLocaleTimeString('zh-CN')
         console.log('刷新完成')
@@ -113,6 +118,12 @@ export default {
         clearInterval(this.refreshTimer)
       }
       this.refreshTimer = setInterval(() => {
+        // 智能刷新：页面隐藏或非交易时段暂停，避免无意义打行情接口
+        this.refreshState = refreshReason()
+        if (!isPageVisible() || !isMarketOpen()) {
+          console.log('自动刷新跳过:', this.refreshState)
+          return
+        }
         console.log('自动刷新触发')
         this.refreshData()
       }, 30000)
@@ -150,5 +161,13 @@ export default {
 .last-update {
   font-size: 12px;
   color: var(--text-muted);
+}
+
+.refresh-state {
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: #f1f5f9;
 }
 </style>

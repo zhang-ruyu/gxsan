@@ -6,6 +6,7 @@ import Calendar from '../views/Calendar.vue'
 import Settings from '../views/Settings.vue'
 import Pension from '../views/Pension.vue'
 import Conversion from '../views/Conversion.vue'
+import DividendSummary from '../views/DividendSummary.vue'
 
 const routes = [
   { path: '/', name: 'Home', component: Home },
@@ -13,6 +14,7 @@ const routes = [
   { path: '/portfolio', name: 'Portfolio', component: Portfolio },
   { path: '/pension', name: 'Pension', component: Pension },
   { path: '/conversion', name: 'Conversion', component: Conversion },
+  { path: '/dividend', name: 'DividendSummary', component: DividendSummary },
   { path: '/calendar', name: 'Calendar', component: Calendar },
   { path: '/settings', name: 'Settings', component: Settings }
 ]

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 
 	"github.com/user/gxsan/internal/config"
 	"github.com/user/gxsan/internal/data"
@@ -67,36 +68,38 @@ func (a *App) fetchStocksForCodes(codes []string) map[string]*model.Stock {
 // ========== 分析报告 ==========
 
 // GetAnalysisReport 获取完整分析报告
-func (a *App) GetAnalysisReport() string {
+// 统一错误契约：出错时返回 ( "", err )，由 Wails 转为 promise rejection，
+// 前端统一在 catch 中处理，不再解析混入 JSON 的 {"error":...}。
+func (a *App) GetAnalysisReport() (string, error) {
 	reportStr, err := a.reporter.GenerateAnalysisReport(false)
 	if err != nil {
-		return fmt.Sprintf(`{"error": "%s"}`, err.Error())
+		return "", err
 	}
-	return reportStr
+	return reportStr, nil
 }
 
 // GetStockDetail 获取单只股票详情（读缓存，JSON 契约）
-func (a *App) GetStockDetail(code string) string {
+func (a *App) GetStockDetail(code string) (string, error) {
 	d, err := a.reporter.GenerateStockDetail(code, false)
 	if err != nil {
-		return fmt.Sprintf(`{"error": "%s"}`, err.Error())
+		return "", err
 	}
-	return toJSON(d)
+	return toJSON(d), nil
 }
 
 // RefreshStock 强制刷新单只股票（绕过缓存），同一支股票可随时多次刷新
-func (a *App) RefreshStock(code string) string {
+func (a *App) RefreshStock(code string) (string, error) {
 	d, err := a.reporter.GenerateStockDetail(code, true)
 	if err != nil {
-		return fmt.Sprintf(`{"error": "%s"}`, err.Error())
+		return "", err
 	}
-	return toJSON(d)
+	return toJSON(d), nil
 }
 
 // ========== 持仓管理 ==========
 
 // GetPortfolio 获取持仓列表（价格/市值由 fund.Monitor 统一计算）
-func (a *App) GetPortfolio() string {
+func (a *App) GetPortfolio() (string, error) {
 	codes := make([]string, 0, len(a.configMgr.Config.Portfolio))
 	for _, h := range a.configMgr.Config.Portfolio {
 		codes = append(codes, h.Code)
@@ -126,7 +129,7 @@ func (a *App) GetPortfolio() string {
 		})
 	}
 
-	return toJSON(items)
+	return toJSON(items), nil
 }
 
 // AddHolding 添加持仓
@@ -147,7 +150,7 @@ func (a *App) RemoveHolding(code string) error {
 // ========== 资金管理 ==========
 
 // GetFundInfo 获取资金信息（与 BuildPool 口径一致）
-func (a *App) GetFundInfo() string {
+func (a *App) GetFundInfo() (string, error) {
 	codes := make([]string, 0, len(a.configMgr.Config.Portfolio))
 	for _, h := range a.configMgr.Config.Portfolio {
 		codes = append(codes, h.Code)
@@ -163,7 +166,7 @@ func (a *App) GetFundInfo() string {
 		MaxPositionPct: pool.MaxPositionPct,
 	}
 
-	return toJSON(info)
+	return toJSON(info), nil
 }
 
 // SetAvailableFund 设置可用资金
@@ -175,7 +178,7 @@ func (a *App) SetAvailableFund(amount float64) error {
 // ========== 监控列表 ==========
 
 // GetWatchlist 获取监控列表（并发抓取 + divStrategy 分析）
-func (a *App) GetWatchlist() string {
+func (a *App) GetWatchlist() (string, error) {
 	codes := make([]string, 0, len(a.configMgr.Config.Watchlist))
 	for _, sc := range a.configMgr.Config.Watchlist {
 		codes = append(codes, sc.Code)
@@ -200,7 +203,7 @@ func (a *App) GetWatchlist() string {
 		items = append(items, item)
 	}
 
-	return toJSON(items)
+	return toJSON(items), nil
 }
 
 // AddWatchlist 添加监控
@@ -221,19 +224,19 @@ func (a *App) UpdateWatchlist(code string, name string, targetYield float64) err
 // ========== 搜索 ==========
 
 // SearchStock 搜索股票
-func (a *App) SearchStock(keyword string) string {
+func (a *App) SearchStock(keyword string) (string, error) {
 	stocks, err := a.fetcher.SearchStock(keyword)
 	if err != nil {
-		return fmt.Sprintf(`{"error": "%s"}`, err.Error())
+		return "", err
 	}
-	return toJSON(stocks)
+	return toJSON(stocks), nil
 }
 
 // ========== 配置管理 ==========
 
 // GetConfig 获取配置
-func (a *App) GetConfig() string {
-	return toJSON(a.configMgr.Config)
+func (a *App) GetConfig() (string, error) {
+	return toJSON(a.configMgr.Config), nil
 }
 
 // SetConfig 设置配置
@@ -276,12 +279,12 @@ func (a *App) SetConfig(key string, value string) error {
 // ========== 日历 ==========
 
 // GetCalendar 获取股利日历
-func (a *App) GetCalendar(days int) string {
+func (a *App) GetCalendar(days int) (string, error) {
 	reportStr, err := a.reporter.GenerateCalendar(days)
 	if err != nil {
-		return fmt.Sprintf(`{"error": "%s"}`, err.Error())
+		return "", err
 	}
-	return reportStr
+	return reportStr, nil
 }
 
 // ========== 工具函数 ==========
@@ -298,15 +301,15 @@ func (a *App) GetConfigFile() string {
 }
 
 // GetGridStrategy 获取网格策略
-func (a *App) GetGridStrategy(code string) string {
+func (a *App) GetGridStrategy(code string) (string, error) {
 	sc := a.configMgr.GetStockConfig(code)
 	if sc == nil {
-		return "{}"
+		return "{}", nil
 	}
 	return toJSON(model.GridStrategyInfo{
 		BuyGrids:  sc.GridStrategy.BuyGrids[:],
 		SellGrids: sc.GridStrategy.SellGrids[:],
-	})
+	}), nil
 }
 
 // ========== 成本股息率(YoC) 辅助 ==========
@@ -325,7 +328,7 @@ func holdingYoC(cfg *model.Config, code string, s *model.Stock) float64 {
 
 // GetPension 养老现金流测算（目标倒推 + 定投复利模拟 + 退休提款）
 // 参数: monthly=目标月分红, invest=月定投, years=年数, rate=年化收益率(%)
-func (a *App) GetPension(monthly, invest float64, years int, rate float64) string {
+func (a *App) GetPension(monthly, invest float64, years int, rate float64) (string, error) {
 	r := rate / 100
 	out := map[string]interface{}{
 		"monthly":          monthly,
@@ -337,36 +340,140 @@ func (a *App) GetPension(monthly, invest float64, years int, rate float64) strin
 		"schedule":         plan.CompoundSchedule(invest, years, r),
 		"retirement_note":  plan.RetirementNote(a.configMgr.Config.LifecycleStage),
 	}
-	return toJSON(out)
+	return toJSON(out), nil
 }
 
 // ========== 资产转换 / 个股对比 ==========
 
 // CompareStocks 两只股票多维对比
-func (a *App) CompareStocks(codeA, codeB string) string {
+func (a *App) CompareStocks(codeA, codeB string) (string, error) {
 	stocks := a.fetcher.EnrichStocks(a.cache, []string{codeA, codeB}, false)
 	sa, okA := stocks[codeA]
 	sb, okB := stocks[codeB]
 	if !okA || !okB {
-		return fmt.Sprintf(`{"error": "获取股票失败 A=%s B=%s"}`, codeA, codeB)
+		return "", fmt.Errorf("获取股票失败 A=%s B=%s", codeA, codeB)
 	}
 	r := plan.CompareStocks(sa, sb,
 		holdingYoC(a.configMgr.Config, codeA, sa),
 		holdingYoC(a.configMgr.Config, codeB, sb))
-	return toJSON(r)
+	return toJSON(r), nil
 }
 
 // RealEstateToEquity 房产→红利股权现金流对比
 // 参数: principal=本金, reYield=租售比(%), eqYield=红利股息率(%)
-func (a *App) RealEstateToEquity(principal, reYield, eqYield float64) string {
-	return toJSON(plan.RealEstateToEquity(principal, reYield/100, eqYield/100))
+func (a *App) RealEstateToEquity(principal, reYield, eqYield float64) (string, error) {
+	return toJSON(plan.RealEstateToEquity(principal, reYield/100, eqYield/100)), nil
 }
 
 // ========== 多账户体系 ==========
 
 // GetAccounts 获取账户列表
-func (a *App) GetAccounts() string {
-	return toJSON(a.configMgr.Config.Accounts)
+func (a *App) GetAccounts() (string, error) {
+	return toJSON(a.configMgr.Config.Accounts), nil
+}
+
+// ========== 分红汇总 ==========
+
+// GetDividendSummary 分红按年/账户汇总（养老现金流测算辅助）
+// 按自然年汇总各持仓分红金额、按账户分组汇总，便于评估分红现金流与养老本金积累。
+func (a *App) GetDividendSummary() (string, error) {
+	holdings := a.configMgr.Config.Portfolio
+	if len(holdings) == 0 {
+		return toJSON(model.DividendSummary{}), nil
+	}
+
+	codes := make([]string, 0, len(holdings))
+	for _, h := range holdings {
+		codes = append(codes, h.Code)
+	}
+	stocks := a.fetcher.EnrichStocks(a.cache, codes, false)
+
+	byAccount := map[string]*model.AccountDividend{}
+	byYear := map[int]*model.YearDividend{}
+	yearCodes := map[int]map[string]bool{} // 各年参与的持仓去重，避免一年内多次分红重复计数
+	totalAnnual := 0.0
+	totalMV := 0.0
+
+	for _, h := range holdings {
+		var price, dps float64
+		if s, ok := stocks[h.Code]; ok {
+			price = s.Price
+			dps = s.DividendPerShare
+		}
+
+		annual := float64(h.Shares) * dps
+		mv := float64(h.Shares) * price
+		acc := h.Account
+		if acc == "" {
+			acc = "未分配"
+		}
+		ad := byAccount[acc]
+		if ad == nil {
+			ad = &model.AccountDividend{Account: acc}
+			byAccount[acc] = ad
+		}
+		ad.Holdings++
+		ad.Shares += h.Shares
+		ad.MarketValue += mv
+		ad.AnnualDividend += annual
+
+		totalAnnual += annual
+		totalMV += mv
+
+		// 按年汇总：取该持仓的历年分红记录（优先缓存，EnrichStocks 已落盘）
+		var dividends []model.DividendRecord
+		if cd, err := a.cache.Get(h.Code); err == nil {
+			dividends = cd.Dividends
+		}
+		for _, d := range dividends {
+			var y int
+			fmt.Sscanf(d.Date, "%d-", &y)
+			if y == 0 {
+				continue
+			}
+			yd := byYear[y]
+			if yd == nil {
+				yd = &model.YearDividend{Year: y}
+				byYear[y] = yd
+			}
+			yd.TotalDividend += float64(h.Shares) * d.Amount
+			if yearCodes[y] == nil {
+				yearCodes[y] = map[string]bool{}
+			}
+			yearCodes[y][h.Code] = true
+		}
+	}
+
+	for y, codes := range yearCodes {
+		if yd, ok := byYear[y]; ok {
+			yd.Holdings = len(codes)
+		}
+	}
+
+	accList := make([]model.AccountDividend, 0, len(byAccount))
+	for _, v := range byAccount {
+		accList = append(accList, *v)
+	}
+	sort.Slice(accList, func(i, j int) bool {
+		return accList[i].AnnualDividend > accList[j].AnnualDividend
+	})
+
+	yearList := make([]model.YearDividend, 0, len(byYear))
+	for _, v := range byYear {
+		yearList = append(yearList, *v)
+	}
+	sort.Slice(yearList, func(i, j int) bool {
+		return yearList[i].Year > yearList[j].Year
+	})
+
+	summary := model.DividendSummary{
+		ByAccount:           accList,
+		ByYear:              yearList,
+		TotalAnnualDividend: totalAnnual,
+		TotalMarketValue:    totalMV,
+		TotalHoldings:       len(holdings),
+	}
+	return toJSON(summary), nil
 }
 
 // AddAccount 添加账户
