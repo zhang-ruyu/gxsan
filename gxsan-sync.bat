@@ -33,12 +33,9 @@ if "%1"=="pull-clean" (
 
 if "%1"=="push" (
     git add -A
-    git diff --cached --quiet && (echo [push] nothing to commit, skip & goto :eof)
-    git status
     set "MSG=%~2"
-    if "%MSG%"=="" set /p MSG=commit message:
     if "%MSG%"=="" set "MSG=chore: update gxsan"
-    git commit -m "%MSG%"
+    git diff --cached --quiet || git commit -m "%MSG%"
     git push origin %BRANCH%
     echo [push] done.
     goto :eof
