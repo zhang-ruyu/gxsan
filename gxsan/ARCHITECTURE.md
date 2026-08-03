@@ -1,7 +1,7 @@
 # GxSan 架构文档（ARCHITECTURE）
 
 > 版本：步骤3（多页面 + 规划测算落地）后
-> 最近更新：2026-07-31
+> 最近更新：2026-08-03（优化四项：错误格式统一 / 智能刷新 / 分红按年账户汇总 / SignalBadge 复用）
 
 ## 1. 总览
 
@@ -33,8 +33,9 @@ gxsan/                         # 根模块（CLI）
     ├── main.go
     ├── frontend/              # Vue3 + Vue Router + Vite
     │   └── src/
-    │       ├── views/         # Home/Detail/Portfolio/Pension/Conversion/Calendar/Settings
+    │       ├── views/         # Home/Detail/Portfolio/Pension/Conversion/DividendSummary/Calendar/Settings
     │       ├── components/     # Sidebar/StockCard/SignalBadge
+    │       ├── utils/          # signal(信号映射) / api(parseJSON) / market(交易时段+可见性)
     │       ├── router/index.js
     │       └── wailsjs/        # wails generate module 自动生成绑定
     └── wails.json
@@ -77,22 +78,41 @@ gxsan/                         # 根模块（CLI）
 
 ## 4. GUI 绑定（app.go）
 
-`app.go` 是薄胶水层，所有逻辑委托给 internal。步骤3新增绑定：
-- `RefreshStock(code)` → 强制刷新（绕过缓存），同一支股票可随时多次刷新
-- `GetPension(monthly, invest, years, rate)`
-- `CompareStocks(codeA, codeB)`、`RealEstateToEquity(principal, reYield, eqYield)`
-- `GetAccounts` / `AddAccount` / `RemoveAccount` / `AssignAccount` / `SetLifecycleStage`
-- `GetPortfolio` 增加 `account` / `yield_on_cost`
-- `GetStockDetail` 返回 JSON（契约对齐）
+`app.go` 是薄胶水层，所有逻辑委托给 internal。
 
-运行 `wails generate module` 后，`frontend/src/wailsjs/` 自动生成 `RefreshStock`/`GetPension` 等绑定（App.js / App.d.ts）。
+### 统一错误契约（2026-08-03 重构 #2）
+- **查询类接口统一返回 `(string, error)`**：成功返回 JSON 字符串，失败返回 `("", err)`。
+- 错误经 Wails 转为 **promise rejection**，前端统一在 `catch` 中处理；不再出现混入 JSON 的
+  `{"error": "..."}` / `{}` / Go error 三种混用格式。
+- 前端 `utils/api.parseJSON(str)` 统一解析：正常仅 JSON.parse；若残留 `{"error":...}` 则主动抛错兜底。
+- 写操作（增删持仓/账户/配置）本来就返回 `error`，保持一致。
+
+### 绑定清单（节选）
+- `GetStockDetail(code)` / `RefreshStock(code)`：返回 `*model.StockDetail` JSON（契约对齐 Detail.vue）
+- `GetPortfolio` 含 `account` / `yield_on_cost`；`GetFundInfo` / `GetWatchlist`
+- `GetPension(monthly, invest, years, rate)`、`CompareStocks(codeA, codeB)`、`RealEstateToEquity(...)`
+- `GetCalendar(days)`：返回**文本**报告（前端按行解析），不走 JSON
+- **`GetDividendSummary()`（#4 新增）**：返回 `model.DividendSummary` JSON，按账户 / 自然年汇总分红
+- `GetAccounts` / `AddAccount` / `RemoveAccount` / `AssignAccount` / `SetLifecycleStage` / `SetConfig` 等
+
+运行 `wails dev` / `wails build` 后，`frontend/src/wailsjs/` 自动生成绑定（App.js / App.d.ts）。
+> 注：本机 Go 工具链较新时，Wails 旧 `x/tools` bindgen 可能 panic（unsupported version）；
+> 此时需手工在 `wailsjs/go/main/App.js` 补对应 `window['go']['main']['App']['X'](...)` 一项，用户机 `wails dev` 会重新生成。
 
 ## 5. 前端多页面
 
-- 路由（`router/index.js`）：`/`（Home）、`/detail/:code`（Detail）、`/portfolio`（Portfolio）、`/pension`（养老测算）、`/conversion`（资产转换）、`/calendar`、`/settings`
+- 路由（`router/index.js`）：`/`（Home）、`/detail/:code`（Detail）、`/portfolio`（Portfolio）、
+  `/dividend`（分红汇总，#4 新增）、`/pension`（养老测算）、`/conversion`（资产转换）、`/calendar`、`/settings`
 - 侧栏（`Sidebar.vue`）：导航菜单
-- **Detail**：刷新按钮调用 `RefreshStock(force)`；展示 YoC、所属账户
+- **通用工具**（`utils/`）：
+  - `signal.js`：信号→样式/文案映射（#6，`SignalBadge` 与 `Detail.vue` 共用，消除重复）
+  - `api.js`：`parseJSON` 统一解析 + `{"error":...}` 兜底（#2）
+  - `market.js`：`isMarketOpen()`（A股交易时段）/ `isPageVisible()` / `refreshReason()`（#3）
+- **智能刷新（#3）**：Home / Detail / Portfolio / DividendSummary 的 30s 轮询在触发前先判断
+  `isPageVisible()` 与 `isMarketOpen()`，隐藏页或非交易时段（含午休/周末）暂停，并在页头显示状态。
+- **Detail**：刷新按钮调用 `RefreshStock(force)`；展示 YoC、所属账户；信号改用 `SignalBadge` 组件（#6）
 - **Portfolio**：按账户分组展示 + YoC 列
+- **DividendSummary（#4）**：按账户汇总（持仓数/市值/年化分红/账户股息率）+ 按自然年汇总（历年分红×当前股数），支撑养老现金流评估
 - **Pension**：目标月分红/月定投/年数/年化 → 倒推本金 + 定投模拟
 - **Conversion**：房产本金/租售比/股息率 → 现金流倍数对比
 
