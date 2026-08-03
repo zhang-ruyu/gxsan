@@ -31,12 +31,12 @@
             <tr><th>维度</th><th>{{ compareResult.a.name }}</th><th>{{ compareResult.b.name }}</th></tr>
           </thead>
           <tbody>
-            <tr><td>当前股息率</td><td>{{ compareResult.a.current_yield.toFixed(2) }}%</td><td>{{ compareResult.b.current_yield.toFixed(2) }}%</td></tr>
-            <tr><td>PE</td><td>{{ compareResult.a.pe.toFixed(2) }}</td><td>{{ compareResult.b.pe.toFixed(2) }}</td></tr>
-            <tr><td>PB</td><td>{{ compareResult.a.pb.toFixed(2) }}</td><td>{{ compareResult.b.pb.toFixed(2) }}</td></tr>
+            <tr><td>当前股息率</td><td>{{ compareResult.a.current_yield.toFixed(3) }}%</td><td>{{ compareResult.b.current_yield.toFixed(3) }}%</td></tr>
+            <tr><td>PE</td><td>{{ compareResult.a.pe.toFixed(3) }}</td><td>{{ compareResult.b.pe.toFixed(3) }}</td></tr>
+            <tr><td>PB</td><td>{{ compareResult.a.pb.toFixed(3) }}</td><td>{{ compareResult.b.pb.toFixed(3) }}</td></tr>
             <tr><td>连续分红</td><td>{{ compareResult.a.dividend_years }}年</td><td>{{ compareResult.b.dividend_years }}年</td></tr>
             <tr v-if="compareResult.a.yield_on_cost || compareResult.b.yield_on_cost">
-              <td>成本股息率</td><td>{{ compareResult.a.yield_on_cost.toFixed(2) }}%</td><td>{{ compareResult.b.yield_on_cost.toFixed(2) }}%</td></tr>
+              <td>成本股息率</td><td>{{ compareResult.a.yield_on_cost.toFixed(3) }}%</td><td>{{ compareResult.b.yield_on_cost.toFixed(3) }}%</td></tr>
           </tbody>
         </table>
         <div class="conclusion" :class="betterClass">
@@ -69,10 +69,10 @@
           <thead><tr><th>指标</th><th>房产(租售)</th><th>红利股权</th></tr></thead>
           <tbody>
             <tr><td>年现金流</td><td>¥{{ formatNumber(reResult.real_estate_income) }}</td><td>¥{{ formatNumber(reResult.equity_income) }}</td></tr>
-            <tr><td>现金流倍数</td><td colspan="2" class="text-center">股权 / 房产 = {{ reResult.income_multiple.toFixed(2) }} 倍</td></tr>
+            <tr><td>现金流倍数</td><td colspan="2" class="text-center">股权 / 房产 = {{ reResult.income_multiple.toFixed(3) }} 倍</td></tr>
           </tbody>
         </table>
-        <p class="hint">转换后现金流翻 {{ reResult.income_multiple.toFixed(1) }} 倍（且 T+1 变现、零维护）</p>
+        <p class="hint">转换后现金流翻 {{ reResult.income_multiple.toFixed(3) }} 倍（且 T+1 变现、零维护）</p>
       </div>
     </div>
   </div>
@@ -107,7 +107,7 @@ export default {
   },
   methods: {
     formatNumber(num) {
-      return Number(num).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+      return Number(num).toFixed(3).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
     },
     async doCompare() {
       if (!this.compare.codeA || !this.compare.codeB) { alert('请输入两只股票代码'); return }

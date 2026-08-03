@@ -31,7 +31,7 @@
           </div>
           <div class="form-group">
             <label class="form-label">年化收益率 (%)</label>
-            <input class="form-input" type="number" step="0.5" v-model.number="params.rate" />
+            <input class="form-input" type="number" step="0.01" v-model.number="params.rate" />
           </div>
         </div>
         <button class="btn btn-primary" @click="calculate">开始测算</button>
@@ -47,7 +47,7 @@
           </thead>
           <tbody>
             <tr v-for="row in result.plan" :key="row.cost_yield">
-              <td>{{ (row.cost_yield * 100).toFixed(0) }}%</td>
+              <td>{{ (row.cost_yield * 100).toFixed(3) }}%</td>
               <td>¥{{ formatNumber(row.required_principal) }}</td>
             </tr>
           </tbody>
@@ -98,7 +98,7 @@ export default {
   },
   methods: {
     formatNumber(num) {
-      return Number(num).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+      return Number(num).toFixed(3).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
     },
     async calculate() {
       this.loading = true
