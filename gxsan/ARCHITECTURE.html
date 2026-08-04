@@ -134,13 +134,43 @@ data.EnrichStock (EastMoney 行情 + 24h 缓存, forceRefresh 可绕过)
 model.* (领域模型)  ←→  config.Manager (yaml 持久化)
 </code></pre>
 <h2>7. 构建与运行</h2>
-<pre><code class="language-bash"># CLI
-cd /c/gxsan &amp;&amp; go build ./... &amp;&amp; go run ./cmd
+<blockquote>
+<p>项目根目录：<code>C:\soft\gxsan</code>（CLI/库）；GUI 模块：<code>C:\soft\gxsan\gxsan</code>。
+所有 git 命令在仓库根 <code>C:\soft</code> 执行（gxsan 是其下的子目录）。</p>
+</blockquote>
+<h3>7.1 构建桌面 exe（关键：用 go build，不要用 wails build）</h3>
+<p><code>wails build</code> 在 Go 1.26.5 下会因自带 bindgen（<code>golang.org/x/tools@v0.1.12</code>）读取新版本导出数据而崩溃
+（<code>panic: unsupported version: 2</code>）。<code>main.go</code> 用 <code>//go:embed all:frontend/dist</code> 无条件嵌入前端、Go↔前端绑定
+走运行时反射（<code>Bind: []interface{}{app}</code>），因此<strong>直接用 <code>go build</code> 即可产出完整桌面程序</strong>，无需 wails build。</p>
+<pre><code class="language-bash"># 推荐：一键脚本（自动构建前端 + 桌面 exe）
+cd C:\soft\gxsan\gxsan &amp;&amp; build.bat
 
-# GUI（需 Wails）
-cd /c/gxsan/gxsan &amp;&amp; wails dev        # 开发预览
-cd /c/gxsan/gxsan &amp;&amp; wails build      # 打包（自动 vite build + go build）
-
-# 仅前端构建校验
-cd /c/gxsan/gxsan/frontend &amp;&amp; npm run build
-</code></pre></body></html>
+# 或手动两步
+cd C:\soft\gxsan\gxsan\frontend &amp;&amp; npm run build   # 前端产物 -&gt; frontend/dist
+cd C:\soft\gxsan\gxsan &amp;&amp; go build -o gxsan.exe .   # 桌面程序 -&gt; gxsan\gxsan\gxsan.exe</code></pre>
+<ul>
+<li><strong>永远不要跑 <code>wails build</code></strong>：Go 1.26.5 下必崩；已用 <code>go build</code> 替代。</li>
+<li>Go 版本：<strong>任意 ≥1.21 均可</strong>，<code>go build</code> 不卡版本；<code>go.mod</code> 里的 <code>go 1.21</code> 仅作语言特性声明。</li>
+<li>新增后端方法（<code>app.go</code> 中导出给前端的函数）后：手工在 <code>frontend/wailsjs/go/main/App.js</code> 补一项导出
+（格式见该文件既有项）；若本机 Go/Wails 工具链兼容，跑 <code>wails dev</code> 会自动重生成该文件覆盖。</li>
+<li>沙箱/CI 注意：<code>npm run build</code> 若遇到「清空 dist 失败」，执行 <code>NODE_OPTIONS="" npm run build</code>
+（避开 safe-delete shim）。用户本机无此问题，正常 <code>npm run build</code> 即可。</li>
+</ul>
+<h3>7.2 CLI 构建与校验</h3>
+<pre><code class="language-bash">cd C:\soft\gxsan &amp;&amp; go build ./...          # 编译全部包（含 internal/plan 单测）
+cd C:\soft\gxsan &amp;&amp; go test ./internal/plan/...   # 跑规划测算单元测试
+cd C:\soft\gxsan\gxsan\frontend &amp;&amp; npm run build  # 仅前端构建校验</code></pre>
+<h3>7.3 分发与 WebView2</h3>
+<ul>
+<li>gxsan 桌面端基于 Wails v2，强依赖系统 <strong>WebView2 Runtime</strong>。现代 Win10/11 大多已预装，双击 <code>gxsan.exe</code> 即可。</li>
+<li><strong>标准分发物只发 <code>gxsan.exe</code></strong>（Fixed Version 约 150MB 太重，不捆绑）。</li>
+<li>目标机若提示缺 WebView2：
+<ol>
+<li>安装 <a href="https://developer.microsoft.com/en-us/microsoft-edge/webview2/">WebView2 Runtime</a>；或</li>
+<li>单独取便携包 <code>webview2/&lt;版本&gt;/</code> 文件夹，用 <code>launch-portable.bat</code>（设 <code>WEBVIEW2_BROWSER_EXECUTABLE_FOLDER</code>）
+启动。仓库内仅提供 <code>launch-portable.bat</code> 模板，不含 150MB 文件夹（已 gitignore <code>webview2/</code>）。</li>
+</ol>
+</li>
+<li>配置与数据默认在用户主目录 <code>~/.gxsan/</code>；<code>gxsan.exe</code> 可随意拷贝到其他机器/目录，与自身位置无关。</li>
+</ul>
+</body></html>

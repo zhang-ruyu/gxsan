@@ -136,14 +136,45 @@ model.* (领域模型)  ←→  config.Manager (yaml 持久化)
 
 ## 7. 构建与运行
 
+> 项目根目录：`C:\soft\gxsan`（CLI/库）；GUI 模块：`C:\soft\gxsan\gxsan`。
+> 所有 git 命令在仓库根 `C:\soft` 执行（gxsan 是其下的子目录）。
+
+### 7.1 构建桌面 exe（关键：用 go build，不要用 wails build）
+
+`wails build` 在 Go 1.26.5 下会因自带 bindgen（`golang.org/x/tools@v0.1.12`）读取新版本导出数据而崩溃
+（`panic: unsupported version: 2`）。`main.go` 用 `//go:embed all:frontend/dist` 无条件嵌入前端、Go↔前端绑定
+走运行时反射（`Bind: []interface{}{app}`），因此**直接用 `go build` 即可产出完整桌面程序**，无需 wails build。
+
 ```bash
-# CLI
-cd /c/gxsan && go build ./... && go run ./cmd
+# 推荐：一键脚本（自动构建前端 + 桌面 exe）
+cd C:\soft\gxsan\gxsan && build.bat
 
-# GUI（需 Wails）
-cd /c/gxsan/gxsan && wails dev        # 开发预览
-cd /c/gxsan/gxsan && wails build      # 打包（自动 vite build + go build）
-
-# 仅前端构建校验
-cd /c/gxsan/gxsan/frontend && npm run build
+# 或手动两步
+cd C:\soft\gxsan\gxsan\frontend && npm run build   # 前端产物 -> frontend/dist
+cd C:\soft\gxsan\gxsan && go build -o gxsan.exe .   # 桌面程序 -> gxsan\gxsan\gxsan.exe
 ```
+
+- **永远不要跑 `wails build`**：Go 1.26.5 下必崩；已用 `go build` 替代。
+- Go 版本：**任意 ≥1.21 均可**，`go build` 不卡版本；`go.mod` 里的 `go 1.21` 仅作语言特性声明。
+- 新增后端方法（`app.go` 中导出给前端的函数）后：手工在 `frontend/wailsjs/go/main/App.js` 补一项导出
+  （格式见该文件既有项）；若本机 Go/Wails 工具链兼容，跑 `wails dev` 会自动重生成该文件覆盖。
+- 沙箱/CI 注意：`npm run build` 若遇到「清空 dist 失败」，执行 `NODE_OPTIONS="" npm run build`
+  （避开 safe-delete shim）。用户本机无此问题，正常 `npm run build` 即可。
+
+### 7.2 CLI 构建与校验
+
+```bash
+cd C:\soft\gxsan && go build ./...          # 编译全部包（含 internal/plan 单测）
+cd C:\soft\gxsan && go test ./internal/plan/...   # 跑规划测算单元测试
+cd C:\soft\gxsan\gxsan\frontend && npm run build  # 仅前端构建校验
+```
+
+### 7.3 分发与 WebView2
+
+- gxsan 桌面端基于 Wails v2，强依赖系统 **WebView2 Runtime**。现代 Win10/11 大多已预装，双击 `gxsan.exe` 即可。
+- **标准分发物只发 `gxsan.exe`**（Fixed Version 约 150MB 太重，不捆绑）。
+- 目标机若提示缺 WebView2：
+  1. 安装 [WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/)；或
+  2. 单独取便携包 `webview2/<版本>/` 文件夹，用 `launch-portable.bat`（设 `WEBVIEW2_BROWSER_EXECUTABLE_FOLDER`）
+     启动。仓库内仅提供 `launch-portable.bat` 模板，不含 150MB 文件夹（已 gitignore `webview2/`）。
+- 配置与数据默认在用户主目录 `~/.gxsan/`；`gxsan.exe` 可随意拷贝到其他机器/目录，与自身位置无关。
