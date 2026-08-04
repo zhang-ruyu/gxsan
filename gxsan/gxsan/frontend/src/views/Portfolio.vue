@@ -43,7 +43,7 @@
               <td class="font-bold">{{ stock.code }}</td>
               <td>{{ stock.name }}</td>
               <td>{{ stock.shares }}</td>
-              <td>¥{{ stock.avg_cost.toFixed(2) }}</td>
+              <td>¥{{ fmtCost(stock.avg_cost) }}</td>
               <td>¥{{ stock.price.toFixed(2) }}</td>
               <td>¥{{ formatNumber(stock.market_value) }}</td>
               <td :class="stock.profit >= 0 ? 'text-green' : 'text-red'">
@@ -86,7 +86,7 @@
         </div>
         <div class="form-group">
           <label class="form-label">成本价 (元)</label>
-          <input class="form-input" type="number" step="0.01" v-model.number="formData.avg_cost" placeholder="5.00">
+          <input class="form-input" type="number" step="0.0001" v-model.number="formData.avg_cost" placeholder="5.0000">
         </div>
         <div class="modal-actions">
           <button class="btn btn-secondary" @click="closeModal">取消</button>
@@ -129,6 +129,11 @@ export default {
   methods: {
     formatNumber(num) {
       return num.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+    },
+    // 成本价按每股精度展示：最多4位小数、去尾零（A股总价/股数常产生4位小数）
+    fmtCost(num) {
+      const v = Number(num || 0)
+      return parseFloat(v.toFixed(4)).toString()
     },
     async refreshData() {
       try {

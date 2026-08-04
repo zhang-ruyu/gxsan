@@ -115,7 +115,7 @@ func (a *App) handlePortfolioList() {
 	fmt.Println("─────────────────────────────────────────────────────────────")
 
 	for _, holding := range a.configMgr.Config.Portfolio {
-		fmt.Printf("%-8s %-10s %-8d ¥%.2f\n", holding.Code, holding.Name, holding.Shares, holding.AvgCost)
+		fmt.Printf("%-8s %-10s %-8d ¥%.4f\n", holding.Code, holding.Name, holding.Shares, holding.AvgCost)
 	}
 }
 
