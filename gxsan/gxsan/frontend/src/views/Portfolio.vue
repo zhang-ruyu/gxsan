@@ -62,9 +62,13 @@
                   <div class="advice-detail">
                     <span v-if="adviceMap[stock.code].action === 'BUY'" class="text-orange">
                       投入 ¥{{ formatNumber(adviceMap[stock.code].suggested_buy_amount) }}
+                      <span v-if="adviceMap[stock.code].suggested_buy_shares > 0" class="text-muted">
+                        （约 {{ adviceMap[stock.code].suggested_buy_shares }} 股）
+                      </span>
                     </span>
                     <span v-else-if="adviceMap[stock.code].action === 'SELL'" class="text-red">
                       卖 {{ adviceMap[stock.code].suggested_sell_shares }} 股
+                      <span class="text-muted">（约 ¥{{ formatNumber(adviceMap[stock.code].suggested_sell_amount) }}）</span>
                     </span>
                     <span class="advice-reason">{{ adviceMap[stock.code].reason }}</span>
                     <span v-if="adviceMap[stock.code].cost_correctable" class="cost-tip">
@@ -106,6 +110,11 @@
         <div class="form-group">
           <label class="form-label">成本价 (元)</label>
           <input class="form-input" type="number" step="0.0001" v-model.number="formData.avg_cost" placeholder="5.0000">
+        </div>
+        <div class="form-group" v-if="isEditing && formData.original_cost > 0">
+          <label class="form-label">原始买入成本</label>
+          <input class="form-input" :value="'¥' + fmtCost(formData.original_cost)" disabled>
+          <span class="form-hint">修正成本前自动保存的快照，防止分红除权后看不到当初买入价</span>
         </div>
         <div class="form-group">
           <label class="form-label">真实投入总额 (元)</label>
@@ -190,7 +199,7 @@ export default {
     },
     openAddModal() {
       this.isEditing = false
-      this.formData = { code: '', name: '', shares: 0, avg_cost: 0, total_cost: 0 }
+      this.formData = { code: '', name: '', shares: 0, avg_cost: 0, original_cost: 0, total_cost: 0 }
       this.showModal = true
     },
     editHolding(stock) {
@@ -200,6 +209,7 @@ export default {
         name: stock.name,
         shares: stock.shares,
         avg_cost: stock.avg_cost,
+        original_cost: stock.original_cost || 0,
         total_cost: 0
       }
       this.showModal = true

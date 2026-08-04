@@ -151,10 +151,11 @@ func (m *Manager) AddHolding(code, name string, shares int, avgCost float64) err
 	}
 
 	holding := model.Holding{
-		Code:    code,
-		Name:    name,
-		Shares:  shares,
-		AvgCost: avgCost,
+		Code:         code,
+		Name:         name,
+		Shares:       shares,
+		AvgCost:      avgCost,
+		OriginalCost: avgCost, // 新建持仓时原始成本=录入成本
 	}
 
 	m.Config.Portfolio = append(m.Config.Portfolio, holding)
@@ -206,6 +207,7 @@ func (m *Manager) SetLifecycleStage(stage int) error {
 
 // CorrectHoldingCost 一键修正持仓成本：以真实投入总额推导精确每股成本
 // 解决 A股「总价÷股数」产生多位小数、手动录入每股成本被四舍五入失真的问题。
+// 首次修正时自动保存原始成本快照(OriginalCost)，防止分红除权后成本被调低而看不到"当初买的时候成本是多少"。
 func (m *Manager) CorrectHoldingCost(code string, totalCost float64) error {
 	for i, h := range m.Config.Portfolio {
 		if h.Code == code {
@@ -214,6 +216,10 @@ func (m *Manager) CorrectHoldingCost(code string, totalCost float64) error {
 			}
 			if totalCost < 0 {
 				return fmt.Errorf("投入总额不能为负")
+			}
+			// 首次修正时保存原始成本快照（OriginalCost 为 0 表示尚未保存过）
+			if m.Config.Portfolio[i].OriginalCost == 0 && h.AvgCost > 0 {
+				m.Config.Portfolio[i].OriginalCost = h.AvgCost
 			}
 			m.Config.Portfolio[i].TotalCost = totalCost
 			m.Config.Portfolio[i].AvgCost = totalCost / float64(h.Shares) // 精确推导，保留 float64 全精度

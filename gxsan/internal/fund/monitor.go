@@ -229,23 +229,28 @@ func (m *Monitor) GenerateHoldingRecommendations(pool *model.InvestPool, stocks 
 				amount = maxAllowed
 				advice.Constraint = fmt.Sprintf("已达单只股票持仓上限%.0f%%", m.config.Fund.MaxPositionPct)
 			}
-			advice.SuggestedBuyAmount = amount
-		case "SELL":
-			pct := 0.0
-			if gridSig != nil {
-				pct = gridSig.SellPercent
-			} else {
-				pct = 20 // 无网格时温和减仓 20%
-			}
-			sellShares := int(float64(h.Shares) * pct / 100)
-			if sellShares == 0 {
-				sellShares = 1
-			}
-			if sellShares > h.Shares {
-				sellShares = h.Shares
-			}
-			advice.SuggestedSellShares = sellShares
+		advice.SuggestedBuyAmount = amount
+		// A股按100股整手交易，估算可买股数
+		if stock.Price > 0 && amount > 0 {
+			advice.SuggestedBuyShares = int(amount/stock.Price/100) * 100
 		}
+	case "SELL":
+		pct := 0.0
+		if gridSig != nil {
+			pct = gridSig.SellPercent
+		} else {
+			pct = 20 // 无网格时温和减仓 20%
+		}
+		sellShares := int(float64(h.Shares) * pct / 100)
+		if sellShares == 0 {
+			sellShares = 1
+		}
+		if sellShares > h.Shares {
+			sellShares = h.Shares
+		}
+		advice.SuggestedSellShares = sellShares
+		advice.SuggestedSellAmount = float64(sellShares) * stock.Price
+	}
 
 		advices = append(advices, advice)
 	}

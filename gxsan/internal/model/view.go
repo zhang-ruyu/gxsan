@@ -5,15 +5,16 @@ package model
 
 // PortfolioItem 持仓项（GUI 展示用）
 type PortfolioItem struct {
-	Code        string  `json:"code"`
-	Name        string  `json:"name"`
-	Shares      int     `json:"shares"`
-	AvgCost     float64 `json:"avg_cost"`
-	Price       float64 `json:"price"`
-	MarketValue float64 `json:"market_value"`
-	Profit      float64 `json:"profit"`
-	ProfitPct   float64 `json:"profit_pct"`
-	YieldOnCost float64 `json:"yield_on_cost"` // 成本股息率 YoC
+	Code         string  `json:"code"`
+	Name         string  `json:"name"`
+	Shares       int     `json:"shares"`
+	AvgCost      float64 `json:"avg_cost"`
+	OriginalCost float64 `json:"original_cost"` // 原始买入成本快照（>0 表示曾修正过）
+	Price        float64 `json:"price"`
+	MarketValue  float64 `json:"market_value"`
+	Profit       float64 `json:"profit"`
+	ProfitPct    float64 `json:"profit_pct"`
+	YieldOnCost  float64 `json:"yield_on_cost"` // 成本股息率 YoC
 }
 
 // FundInfo 资金信息（GUI 展示用）
@@ -105,7 +106,9 @@ type ActionAdvice struct {
 	TargetYield         float64 `json:"target_yield"`   // 目标股息率
 	Action              string  `json:"action"`         // BUY / HOLD / SELL / WATCH
 	SuggestedBuyAmount  float64 `json:"suggested_buy_amount"`  // ¥（Action=BUY 时有效）
+	SuggestedBuyShares  int     `json:"suggested_buy_shares"`  // 估算可买股数（A股按100股向下取整）
 	SuggestedSellShares int     `json:"suggested_sell_shares"` // 股（Action=SELL 时有效）
+	SuggestedSellAmount float64 `json:"suggested_sell_amount"` // 估算卖出可得金额
 	Reason              string  `json:"reason"`
 	Constraint          string  `json:"constraint"` // 约束提示（资金不足/已达上限/未设网格等）
 	Priority            int     `json:"priority"`   // 数字越小越优先执行

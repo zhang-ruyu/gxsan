@@ -92,6 +92,7 @@
             <tr>
               <th>代码</th>
               <th>名称</th>
+              <th>股息率</th>
               <th>行动</th>
               <th>建议金额/数量</th>
               <th>理由</th>
@@ -101,10 +102,20 @@
             <tr v-for="(ad, idx) in dash.advice" :key="idx">
               <td class="font-bold">{{ ad.code }}</td>
               <td>{{ ad.name }}</td>
+              <td :class="ad.current_yield >= ad.target_yield ? 'text-green' : ''">
+                {{ ad.current_yield.toFixed(2) }}%
+                <div class="text-muted small">目标 {{ ad.target_yield.toFixed(2) }}%</div>
+              </td>
               <td><SignalBadge :signal="ad.action" /></td>
               <td>
-                <span v-if="ad.action === 'BUY'" class="text-orange">投入 ¥{{ formatNumber(ad.suggested_buy_amount) }}</span>
-                <span v-else-if="ad.action === 'SELL'" class="text-red">卖出 {{ ad.suggested_sell_shares }} 股</span>
+                <span v-if="ad.action === 'BUY'" class="text-orange">
+                  投入 ¥{{ formatNumber(ad.suggested_buy_amount) }}
+                  <span v-if="ad.suggested_buy_shares > 0" class="text-muted small">（约 {{ ad.suggested_buy_shares }} 股）</span>
+                </span>
+                <span v-else-if="ad.action === 'SELL'" class="text-red">
+                  卖出 {{ ad.suggested_sell_shares }} 股
+                  <span class="text-muted small">（约 ¥{{ formatNumber(ad.suggested_sell_amount) }}）</span>
+                </span>
                 <span v-else>—</span>
                 <div v-if="ad.constraint" class="text-muted small">{{ ad.constraint }}</div>
               </td>
@@ -229,6 +240,7 @@ export default {
   background: #f1f5f9;
 }
 
+.text-green { color: var(--success-color); }
 .text-orange { color: #e8590c; }
 .text-red { color: var(--danger-color); }
 .text-muted { color: var(--text-muted); }

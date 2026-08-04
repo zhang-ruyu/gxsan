@@ -115,17 +115,18 @@ func (a *App) GetPortfolio() (string, error) {
 		if cost > 0 {
 			profitPct = (profit / cost) * 100
 		}
-		items = append(items, model.PortfolioItem{
-			Code:        h.Code,
-			Name:        h.Name,
-			Shares:      h.Shares,
-			AvgCost:     h.AvgCost,
-			Price:       h.CurrentPrice,
-			MarketValue: h.MarketValue,
-			Profit:      profit,
-			ProfitPct:   profitPct,
-			YieldOnCost: h.YieldOnCost,
-		})
+	items = append(items, model.PortfolioItem{
+		Code:         h.Code,
+		Name:         h.Name,
+		Shares:       h.Shares,
+		AvgCost:      h.AvgCost,
+		OriginalCost: h.OriginalCost,
+		Price:        h.CurrentPrice,
+		MarketValue:  h.MarketValue,
+		Profit:       profit,
+		ProfitPct:    profitPct,
+		YieldOnCost:  h.YieldOnCost,
+	})
 	}
 
 	return toJSON(items), nil
