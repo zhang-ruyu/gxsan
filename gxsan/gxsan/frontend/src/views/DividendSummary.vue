@@ -40,40 +40,6 @@
         </div>
       </div>
 
-      <!-- 按账户汇总 -->
-      <div class="card">
-        <div class="card-header">
-          <span class="card-title">按账户汇总（三账户体系）</span>
-        </div>
-        <table class="table">
-          <thead>
-            <tr>
-              <th>账户</th>
-              <th>持仓数</th>
-              <th>股数</th>
-              <th>市值</th>
-              <th>年化分红</th>
-              <th>账户股息率</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(acc, index) in summary.by_account" :key="index">
-              <td class="font-bold">{{ acc.account }}</td>
-              <td>{{ acc.holdings }}</td>
-              <td>{{ formatNumber(acc.shares) }}</td>
-              <td>¥{{ formatNumber(acc.market_value) }}</td>
-              <td class="text-orange">¥{{ formatNumber(acc.annual_dividend) }}</td>
-              <td :class="acc.market_value > 0 ? 'text-green' : ''">
-                {{ acc.market_value > 0 ? (acc.annual_dividend / acc.market_value * 100).toFixed(2) + '%' : '-' }}
-              </td>
-            </tr>
-          </tbody>
-        </table>
-        <div v-if="summary.by_account.length === 0" class="empty-state">
-          <p>暂无持仓</p>
-        </div>
-      </div>
-
       <!-- 按年汇总 -->
       <div class="card">
         <div class="card-header">
@@ -115,7 +81,6 @@ export default {
       loading: true,
       error: null,
       summary: {
-        by_account: [],
         by_year: [],
         total_annual_dividend: 0,
         total_market_value: 0,

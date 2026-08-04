@@ -118,7 +118,6 @@ func (a *App) GetPortfolio() (string, error) {
 		items = append(items, model.PortfolioItem{
 			Code:        h.Code,
 			Name:        h.Name,
-			Account:     h.Account,
 			Shares:      h.Shares,
 			AvgCost:     h.AvgCost,
 			Price:       h.CurrentPrice,
@@ -134,7 +133,7 @@ func (a *App) GetPortfolio() (string, error) {
 
 // AddHolding 添加持仓
 func (a *App) AddHolding(code string, name string, shares int, cost float64) error {
-	return a.configMgr.AddHolding(code, name, shares, cost, "")
+	return a.configMgr.AddHolding(code, name, shares, cost)
 }
 
 // UpdateHolding 更新持仓
@@ -365,17 +364,10 @@ func (a *App) RealEstateToEquity(principal, reYield, eqYield float64) (string, e
 	return toJSON(plan.RealEstateToEquity(principal, reYield/100, eqYield/100)), nil
 }
 
-// ========== 多账户体系 ==========
-
-// GetAccounts 获取账户列表
-func (a *App) GetAccounts() (string, error) {
-	return toJSON(a.configMgr.Config.Accounts), nil
-}
-
 // ========== 分红汇总 ==========
 
-// GetDividendSummary 分红按年/账户汇总（养老现金流测算辅助）
-// 按自然年汇总各持仓分红金额、按账户分组汇总，便于评估分红现金流与养老本金积累。
+// GetDividendSummary 分红按年汇总（养老现金流测算辅助）
+// 按自然年汇总各持仓分红金额，便于评估分红现金流与养老本金积累。
 func (a *App) GetDividendSummary() (string, error) {
 	holdings := a.configMgr.Config.Portfolio
 	if len(holdings) == 0 {
@@ -388,7 +380,6 @@ func (a *App) GetDividendSummary() (string, error) {
 	}
 	stocks := a.fetcher.EnrichStocks(a.cache, codes, false)
 
-	byAccount := map[string]*model.AccountDividend{}
 	byYear := map[int]*model.YearDividend{}
 	yearCodes := map[int]map[string]bool{} // 各年参与的持仓去重，避免一年内多次分红重复计数
 	totalAnnual := 0.0
@@ -403,19 +394,6 @@ func (a *App) GetDividendSummary() (string, error) {
 
 		annual := float64(h.Shares) * dps
 		mv := float64(h.Shares) * price
-		acc := h.Account
-		if acc == "" {
-			acc = "未分配"
-		}
-		ad := byAccount[acc]
-		if ad == nil {
-			ad = &model.AccountDividend{Account: acc}
-			byAccount[acc] = ad
-		}
-		ad.Holdings++
-		ad.Shares += h.Shares
-		ad.MarketValue += mv
-		ad.AnnualDividend += annual
 
 		totalAnnual += annual
 		totalMV += mv
@@ -450,14 +428,6 @@ func (a *App) GetDividendSummary() (string, error) {
 		}
 	}
 
-	accList := make([]model.AccountDividend, 0, len(byAccount))
-	for _, v := range byAccount {
-		accList = append(accList, *v)
-	}
-	sort.Slice(accList, func(i, j int) bool {
-		return accList[i].AnnualDividend > accList[j].AnnualDividend
-	})
-
 	yearList := make([]model.YearDividend, 0, len(byYear))
 	for _, v := range byYear {
 		yearList = append(yearList, *v)
@@ -467,28 +437,12 @@ func (a *App) GetDividendSummary() (string, error) {
 	})
 
 	summary := model.DividendSummary{
-		ByAccount:           accList,
 		ByYear:              yearList,
 		TotalAnnualDividend: totalAnnual,
 		TotalMarketValue:    totalMV,
 		TotalHoldings:       len(holdings),
 	}
 	return toJSON(summary), nil
-}
-
-// AddAccount 添加账户
-func (a *App) AddAccount(name, accType string) error {
-	return a.configMgr.AddAccount(name, accType)
-}
-
-// RemoveAccount 删除账户
-func (a *App) RemoveAccount(name string) error {
-	return a.configMgr.RemoveAccount(name)
-}
-
-// AssignAccount 将持仓分配到账户
-func (a *App) AssignAccount(code, name string) error {
-	return a.configMgr.SetHoldingAccount(code, name)
 }
 
 // SetLifecycleStage 设置生命周期阶段（1-4）

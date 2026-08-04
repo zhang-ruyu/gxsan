@@ -19,13 +19,11 @@ func (r *Reporter) GenerateStockDetail(code string, forceRefresh bool) (*model.S
 
 	signal := r.divStrategy.Analyze(stock, r.config)
 
-	// 若该股在持仓中，补充成本股息率(YoC)与所属账户（三账户体系）
+	// 若该股在持仓中，补充成本股息率(YoC)
 	var yoc float64
-	var account string
 	for _, h := range r.config.Portfolio {
 		if h.Code == code && h.AvgCost > 0 {
 			yoc = data.CalculateDividendYield(h.AvgCost, stock.DividendPerShare)
-			account = h.Account
 			break
 		}
 	}
@@ -74,7 +72,6 @@ func (r *Reporter) GenerateStockDetail(code string, forceRefresh bool) (*model.S
 		DividendPerShare:    stock.DividendPerShare,
 		DividendYears:       stock.DividendYears,
 		YieldOnCost:         yoc,
-		Account:             account,
 		Signal:              signal.Action,
 		Valuation:           "",
 		Score:               signal.Score,
@@ -120,9 +117,6 @@ func FormatStockDetailText(d *model.StockDetail) string {
 	b.WriteString(fmt.Sprintf("  今日涨跌:     %.2f%%\n", d.Change))
 	b.WriteString(fmt.Sprintf("  市盈率(PE):   %.2f\n", d.PE))
 	b.WriteString(fmt.Sprintf("  市净率(PB):   %.2f\n", d.PB))
-	if d.Account != "" {
-		b.WriteString(fmt.Sprintf("  所属账户:     %s\n", d.Account))
-	}
 	b.WriteString("\n")
 
 	b.WriteString("股息数据\n")

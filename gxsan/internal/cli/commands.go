@@ -74,8 +74,6 @@ func (a *App) Run(args []string) {
 		a.handleCompare(args[2:])
 	case "yoc":
 		a.handleYoC(args[2:])
-	case "account":
-		a.handleAccount(args[2:])
 	case "config":
 		a.handleConfig(args[2:])
 	case "version":
@@ -139,13 +137,7 @@ func (a *App) showHelp() {
       两只股票多维对比（股息率/估值/分红稳定性）
 
   yoc
-      持仓成本股息率(YoC)与账户分组
-
-  account list
-  account add <名称> <类型>
-  account remove <名称>
-  account assign <代码> <账户名>
-      多账户体系管理
+      持仓成本股息率(YoC)
 
   config show
   config set <键> <值>

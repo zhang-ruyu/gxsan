@@ -1,7 +1,7 @@
 # GxSan 架构文档（ARCHITECTURE）
 
 > 版本：步骤3（多页面 + 规划测算落地）后
-> 最近更新：2026-08-03（优化四项：错误格式统一 / 智能刷新 / 分红按年账户汇总 / SignalBadge 复用）
+> 最近更新：2026-08-04（删除多账户体系，分红汇总改为仅按自然年；多页面/Dashboard 优化规划中）
 
 ## 1. 总览
 
@@ -20,8 +20,8 @@ gxsan/                         # 根模块（CLI）
 ├── config/                    # 配置加载/保存（yaml）
 ├── data/                      # 行情抓取 + 缓存（EastMoneyFetcher, Cache, EnrichStock/EnrichStocks 并发批量）
 ├── internal/
-│   ├── model/                 # 领域模型：Stock/Holding/Account/Config/Portfolio/View DTO
-│   ├── config/                # Config Manager（增删持仓/账户/生命周期）
+│   ├── model/                 # 领域模型：Stock/Holding/Config/Portfolio/View DTO
+│   ├── config/                # Config Manager（增删持仓/生命周期）
 │   ├── data/                  # （同上层 data，内部细分）
 │   ├── report/                # 报告生成：analyze/detail/calendar → 文本或 JSON DTO
 │   ├── strategy/              # 单只股票买卖信号（DividendStrategy, cost_yield YoC）
@@ -44,11 +44,11 @@ gxsan/                         # 根模块（CLI）
 ## 3. 分层职责
 
 ### model（领域模型，单一真源）
-- `stock.go`：`Stock`（行情+分红）、`Holding`（持仓，含 `Account` 字段）、`StockConfig`
-- `account.go`：`Account` 类型 + 默认5账户（养老/教育/港美股/娱乐/打新）+ `LifecycleStageName`
-- `config.go`：`Config` 增加 `Accounts`、`LifecycleStage`（1启动/2滚雪球/3自由/4收获）
-- `portfolio.go`：`InvestPool` + `GroupByAccount()` 按账户分组
-- `view.go`：`StockDetail` JSON DTO（history / yield_on_cost / account / 估值区间 / 网格等），对齐 Detail.vue 字段；`PortfolioItem` 增加 `Account`/`YieldOnCost`
+- `stock.go`：`Stock`（行情+分红）、`Holding`（持仓）、`StockConfig`
+- `account.go`：`LifecycleStageName`（1启动/2滚雪球/3自由/4收获）
+- `config.go`：`Config` 含 `LifecycleStage`（1启动/2滚雪球/3自由/4收获）
+- `portfolio.go`：`InvestPool` 统一计算持仓市值/成本/盈亏
+- `view.go`：`StockDetail` JSON DTO（history / yield_on_cost / 估值区间 / 网格等），对齐 Detail.vue 字段；`PortfolioItem` 含 `YieldOnCost`
 
 ### data（抓取与缓存）
 - `enrich.go`：`EnrichStock`（单只，内部行情+分红两次 HTTP 并发）、`EnrichStocks(codes, forceRefresh)`（多只批量并发，信号量限流上限 8）
@@ -73,7 +73,7 @@ gxsan/                         # 根模块（CLI）
 - `Monitor.BuildPool`：统一计算持仓市值/成本/盈亏/最大仓位
 
 ### cli（命令入口）
-- `commands.go`：分发 add/list/analyze/detail/pension/compare/yoc/account/config…
+- `commands.go`：分发 add/list/analyze/detail/pension/compare/yoc/config…
 - `cmd_*.go`：各子命令；`--refresh` 解析；帮助用 `fmt.Print` 输出（避免「年化%」被当格式符）
 
 ## 4. GUI 绑定（app.go）
@@ -85,15 +85,15 @@ gxsan/                         # 根模块（CLI）
 - 错误经 Wails 转为 **promise rejection**，前端统一在 `catch` 中处理；不再出现混入 JSON 的
   `{"error": "..."}` / `{}` / Go error 三种混用格式。
 - 前端 `utils/api.parseJSON(str)` 统一解析：正常仅 JSON.parse；若残留 `{"error":...}` 则主动抛错兜底。
-- 写操作（增删持仓/账户/配置）本来就返回 `error`，保持一致。
+- 写操作（增删持仓/配置）本来就返回 `error`，保持一致。
 
 ### 绑定清单（节选）
 - `GetStockDetail(code)` / `RefreshStock(code)`：返回 `*model.StockDetail` JSON（契约对齐 Detail.vue）
-- `GetPortfolio` 含 `account` / `yield_on_cost`；`GetFundInfo` / `GetWatchlist`
+- `GetPortfolio` 含 `yield_on_cost`；`GetFundInfo` / `GetWatchlist`
 - `GetPension(monthly, invest, years, rate)`、`CompareStocks(codeA, codeB)`、`RealEstateToEquity(...)`
 - `GetCalendar(days)`：返回**文本**报告（前端按行解析），不走 JSON
-- **`GetDividendSummary()`（#4 新增）**：返回 `model.DividendSummary` JSON，按账户 / 自然年汇总分红
-- `GetAccounts` / `AddAccount` / `RemoveAccount` / `AssignAccount` / `SetLifecycleStage` / `SetConfig` 等
+- **`GetDividendSummary()`（#4 新增）**：返回 `model.DividendSummary` JSON，按自然年汇总分红
+- `SetLifecycleStage` / `SetConfig` 等
 
 运行 `wails dev` / `wails build` 后，`frontend/src/wailsjs/` 自动生成绑定（App.js / App.d.ts）。
 > 注：本机 Go 工具链较新时，Wails 旧 `x/tools` bindgen 可能 panic（unsupported version）；
@@ -110,9 +110,9 @@ gxsan/                         # 根模块（CLI）
   - `market.js`：`isMarketOpen()`（A股交易时段）/ `isPageVisible()` / `refreshReason()`（#3）
 - **智能刷新（#3）**：Home / Detail / Portfolio / DividendSummary 的 30s 轮询在触发前先判断
   `isPageVisible()` 与 `isMarketOpen()`，隐藏页或非交易时段（含午休/周末）暂停，并在页头显示状态。
-- **Detail**：刷新按钮调用 `RefreshStock(force)`；展示 YoC、所属账户；信号改用 `SignalBadge` 组件（#6）
-- **Portfolio**：按账户分组展示 + YoC 列
-- **DividendSummary（#4）**：按账户汇总（持仓数/市值/年化分红/账户股息率）+ 按自然年汇总（历年分红×当前股数），支撑养老现金流评估
+- **Detail**：刷新按钮调用 `RefreshStock(force)`；展示 YoC；信号改用 `SignalBadge` 组件（#6）
+- **Portfolio**：平铺展示全部持仓 + YoC 列
+- **DividendSummary（#4）**：按自然年汇总（历年分红×当前股数），支撑养老现金流评估
 - **Pension**：目标月分红/月定投/年数/年化 → 倒推本金 + 定投模拟
 - **Conversion**：房产本金/租售比/股息率 → 现金流倍数对比
 

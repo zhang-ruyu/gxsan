@@ -1,7 +1,7 @@
 <!DOCTYPE html><html lang="zh"><head><meta charset="utf-8"><style>body{font-family:sans-serif;max-width:900px;margin:40px auto;padding:0 20px;line-height:1.6;color:#222}h1{border-bottom:2px solid #eee;padding-bottom:8px}h2{border-bottom:1px solid #eee;padding-bottom:4px;margin-top:32px}code{background:#f4f4f4;padding:2px 5px;border-radius:3px;font-family:Consolas,monospace}pre{background:#f8f8f8;padding:14px;border-radius:6px;overflow:auto}pre code{background:none;padding:0}table{border-collapse:collapse;width:100%;margin:16px 0}th,td{border:1px solid #ddd;padding:8px 10px;text-align:left}th{background:#f4f4f4}ul,ol{padding-left:24px}hr{border:none;border-top:1px solid #eee;margin:24px 0}blockquote{background:#f9f9f9;border-left:4px solid #ccc;margin:16px 0;padding:8px 16px;color:#555}</style></head><body><h1>GxSan 架构文档（ARCHITECTURE）</h1>
 <blockquote>
 <p>版本：步骤3（多页面 + 规划测算落地）后
-最近更新：2026-08-03（优化四项：错误格式统一 / 智能刷新 / 分红按年账户汇总 / SignalBadge 复用）</p>
+最近更新：2026-08-04（删除多账户体系，分红汇总改为仅按自然年；多页面/Dashboard 优化规划中）</p>
 </blockquote>
 <h2>1. 总览</h2>
 <p>GxSan（股息三）是 A 股分红投资分析与决策辅助工具，落地技能 <code>a-share-dividend-investing</code> 的方法论。采用 <strong>双模块 + 单一业务真源</strong> 结构：</p>
@@ -16,8 +16,8 @@
 ├── config/                    # 配置加载/保存（yaml）
 ├── data/                      # 行情抓取 + 缓存（EastMoneyFetcher, Cache, EnrichStock/EnrichStocks 并发批量）
 ├── internal/
-│   ├── model/                 # 领域模型：Stock/Holding/Account/Config/Portfolio/View DTO
-│   ├── config/                # Config Manager（增删持仓/账户/生命周期）
+│   ├── model/                 # 领域模型：Stock/Holding/Config/Portfolio/View DTO
+│   ├── config/                # Config Manager（增删持仓/生命周期）
 │   ├── data/                  # （同上层 data，内部细分）
 │   ├── report/                # 报告生成：analyze/detail/calendar → 文本或 JSON DTO
 │   ├── strategy/              # 单只股票买卖信号（DividendStrategy, cost_yield YoC）
@@ -39,11 +39,11 @@
 <h2>3. 分层职责</h2>
 <h3>model（领域模型，单一真源）</h3>
 <ul>
-<li><code>stock.go</code>：<code>Stock</code>（行情+分红）、<code>Holding</code>（持仓，含 <code>Account</code> 字段）、<code>StockConfig</code></li>
-<li><code>account.go</code>：<code>Account</code> 类型 + 默认5账户（养老/教育/港美股/娱乐/打新）+ <code>LifecycleStageName</code></li>
-<li><code>config.go</code>：<code>Config</code> 增加 <code>Accounts</code>、<code>LifecycleStage</code>（1启动/2滚雪球/3自由/4收获）</li>
-<li><code>portfolio.go</code>：<code>InvestPool</code> + <code>GroupByAccount()</code> 按账户分组</li>
-<li><code>view.go</code>：<code>StockDetail</code> JSON DTO（history / yield_on_cost / account / 估值区间 / 网格等），对齐 Detail.vue 字段；<code>PortfolioItem</code> 增加 <code>Account</code>/<code>YieldOnCost</code></li>
+<li><code>stock.go</code>：<code>Stock</code>（行情+分红）、<code>Holding</code>（持仓）、<code>StockConfig</code></li>
+<li><code>account.go</code>：<code>LifecycleStageName</code>（1启动/2滚雪球/3自由/4收获）</li>
+<li><code>config.go</code>：<code>Config</code> 含 <code>LifecycleStage</code>（1启动/2滚雪球/3自由/4收获）</li>
+<li><code>portfolio.go</code>：<code>InvestPool</code> 统一计算持仓市值/成本/盈亏</li>
+<li><code>view.go</code>：<code>StockDetail</code> JSON DTO（history / yield_on_cost / 估值区间 / 网格等），对齐 Detail.vue 字段；<code>PortfolioItem</code> 含 <code>YieldOnCost</code></li>
 </ul>
 <h3>data（抓取与缓存）</h3>
 <ul>
@@ -74,7 +74,7 @@
 </ul>
 <h3>cli（命令入口）</h3>
 <ul>
-<li><code>commands.go</code>：分发 add/list/analyze/detail/pension/compare/yoc/account/config…</li>
+<li><code>commands.go</code>：分发 add/list/analyze/detail/pension/compare/yoc/config…</li>
 <li><code>cmd_*.go</code>：各子命令；<code>--refresh</code> 解析；帮助用 <code>fmt.Print</code> 输出（避免「年化%」被当格式符）</li>
 </ul>
 <h2>4. GUI 绑定（app.go）</h2>
@@ -85,16 +85,16 @@
 <li>错误经 Wails 转为 <strong>promise rejection</strong>，前端统一在 <code>catch</code> 中处理；不再出现混入 JSON 的
   <code>{"error": "..."}</code> / <code>{}</code> / Go error 三种混用格式。</li>
 <li>前端 <code>utils/api.parseJSON(str)</code> 统一解析：正常仅 JSON.parse；若残留 <code>{"error":...}</code> 则主动抛错兜底。</li>
-<li>写操作（增删持仓/账户/配置）本来就返回 <code>error</code>，保持一致。</li>
+<li>写操作（增删持仓/配置）本来就返回 <code>error</code>，保持一致。</li>
 </ul>
 <h3>绑定清单（节选）</h3>
 <ul>
 <li><code>GetStockDetail(code)</code> / <code>RefreshStock(code)</code>：返回 <code>*model.StockDetail</code> JSON（契约对齐 Detail.vue）</li>
-<li><code>GetPortfolio</code> 含 <code>account</code> / <code>yield_on_cost</code>；<code>GetFundInfo</code> / <code>GetWatchlist</code></li>
+<li><code>GetPortfolio</code> 含 <code>yield_on_cost</code>；<code>GetFundInfo</code> / <code>GetWatchlist</code></li>
 <li><code>GetPension(monthly, invest, years, rate)</code>、<code>CompareStocks(codeA, codeB)</code>、<code>RealEstateToEquity(...)</code></li>
 <li><code>GetCalendar(days)</code>：返回<strong>文本</strong>报告（前端按行解析），不走 JSON</li>
-<li><strong><code>GetDividendSummary()</code>（#4 新增）</strong>：返回 <code>model.DividendSummary</code> JSON，按账户 / 自然年汇总分红</li>
-<li><code>GetAccounts</code> / <code>AddAccount</code> / <code>RemoveAccount</code> / <code>AssignAccount</code> / <code>SetLifecycleStage</code> / <code>SetConfig</code> 等</li>
+<li><strong><code>GetDividendSummary()</code>（#4 新增）</strong>：返回 <code>model.DividendSummary</code> JSON，按自然年汇总分红</li>
+<li><code>SetLifecycleStage</code> / <code>SetConfig</code> 等</li>
 </ul>
 <p>运行 <code>wails dev</code> / <code>wails build</code> 后，<code>frontend/src/wailsjs/</code> 自动生成绑定（App.js / App.d.ts）。</p>
 <blockquote>
@@ -112,9 +112,9 @@
 <li><code>market.js</code>：<code>isMarketOpen()</code>（A股交易时段）/ <code>isPageVisible()</code> / <code>refreshReason()</code>（#3）</li>
 <li><strong>智能刷新（#3）</strong>：Home / Detail / Portfolio / DividendSummary 的 30s 轮询在触发前先判断
   <code>isPageVisible()</code> 与 <code>isMarketOpen()</code>，隐藏页或非交易时段（含午休/周末）暂停，并在页头显示状态。</li>
-<li><strong>Detail</strong>：刷新按钮调用 <code>RefreshStock(force)</code>；展示 YoC、所属账户；信号改用 <code>SignalBadge</code> 组件（#6）</li>
-<li><strong>Portfolio</strong>：按账户分组展示 + YoC 列</li>
-<li><strong>DividendSummary（#4）</strong>：按账户汇总（持仓数/市值/年化分红/账户股息率）+ 按自然年汇总（历年分红×当前股数），支撑养老现金流评估</li>
+<li><strong>Detail</strong>：刷新按钮调用 <code>RefreshStock(force)</code>；展示 YoC；信号改用 <code>SignalBadge</code> 组件（#6）</li>
+<li><strong>Portfolio</strong>：平铺展示全部持仓 + YoC 列</li>
+<li><strong>DividendSummary（#4）</strong>：按自然年汇总（历年分红×当前股数），支撑养老现金流评估</li>
 <li><strong>Pension</strong>：目标月分红/月定投/年数/年化 → 倒推本金 + 定投模拟</li>
 <li><strong>Conversion</strong>：房产本金/租售比/股息率 → 现金流倍数对比</li>
 </ul>

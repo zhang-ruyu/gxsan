@@ -4,7 +4,6 @@
       <div class="header-left">
         <button class="btn btn-secondary btn-sm" @click="goBack">← 返回</button>
         <h2>{{ stockName }} ({{ stockCode }})</h2>
-        <span class="account-badge" v-if="report.data.account">{{ report.data.account }}</span>
       </div>
       <div class="header-actions">
         <span class="last-update" v-if="lastUpdate">最后更新: {{ lastUpdate }}</span>
@@ -318,12 +317,4 @@ export default {
 .text-red { color: var(--danger-color); }
 .text-orange { color: #e8590c; }
 .text-muted { color: var(--text-muted); }
-
-.account-badge {
-  font-size: 12px;
-  padding: 3px 10px;
-  border-radius: 12px;
-  background: #eef2ff;
-  color: #4f46e5;
-}
 </style>

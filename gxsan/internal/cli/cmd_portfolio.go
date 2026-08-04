@@ -69,7 +69,7 @@ func (a *App) handlePortfolioAdd(args []string) {
 		name = code
 	}
 
-	if err := a.configMgr.AddHolding(code, name, shares, cost, ""); err != nil {
+	if err := a.configMgr.AddHolding(code, name, shares, cost); err != nil {
 		fmt.Printf("添加失败: %v\n", err)
 		return
 	}

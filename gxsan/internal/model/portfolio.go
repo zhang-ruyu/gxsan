@@ -45,16 +45,3 @@ func (p *InvestPool) GetHoldingRatio(code string) float64 {
 	}
 	return h.MarketValue / p.TotalAsset * 100
 }
-
-// GroupByAccount 按账户(三账户体系)分组持仓；未分配账户归为「未分配」
-func (p *InvestPool) GroupByAccount() map[string][]Holding {
-	groups := make(map[string][]Holding)
-	for _, h := range p.Holdings {
-		key := h.Account
-		if key == "" {
-			key = "未分配"
-		}
-		groups[key] = append(groups[key], h)
-	}
-	return groups
-}

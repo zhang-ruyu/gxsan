@@ -7,7 +7,6 @@ package model
 type PortfolioItem struct {
 	Code        string  `json:"code"`
 	Name        string  `json:"name"`
-	Account     string  `json:"account"` // 所属账户（三账户体系）
 	Shares      int     `json:"shares"`
 	AvgCost     float64 `json:"avg_cost"`
 	Price       float64 `json:"price"`
@@ -64,7 +63,6 @@ type StockDetail struct {
 	DividendPerShare   float64             `json:"dividend_per_share"`
 	DividendYears      int                 `json:"dividend_years"`
 	YieldOnCost        float64             `json:"yield_on_cost"` // 成本股息率（有持仓时）
-	Account             string              `json:"account"`       // 所属账户（有持仓时）
 	Signal              string             `json:"signal"`
 	Valuation           string             `json:"valuation"`
 	Score               int                `json:"score"`
@@ -78,23 +76,13 @@ type StockDetail struct {
 	History             []DividendHistoryItem `json:"history"`
 }
 
-// DividendSummary 分红按年/账户汇总（GUI 分红汇总页用）
-// 按自然年汇总各持仓分红金额、按账户分组汇总，便于评估分红现金流。
+// DividendSummary 分红按年汇总（GUI 分红汇总页用）
+// 按自然年汇总各持仓分红金额，便于评估分红现金流与养老本金积累。
 type DividendSummary struct {
-	ByAccount           []AccountDividend `json:"by_account"`
 	ByYear              []YearDividend    `json:"by_year"`
 	TotalAnnualDividend float64           `json:"total_annual_dividend"` // 当前持仓年化分红总额
 	TotalMarketValue    float64           `json:"total_market_value"`
 	TotalHoldings       int               `json:"total_holdings"`
-}
-
-// AccountDividend 单账户分红汇总
-type AccountDividend struct {
-	Account        string  `json:"account"`
-	Holdings       int     `json:"holdings"`        // 持仓只数
-	Shares         int     `json:"shares"`          // 总股数
-	MarketValue    float64 `json:"market_value"`    // 市值
-	AnnualDividend float64 `json:"annual_dividend"` // 年化分红金额
 }
 
 // YearDividend 单年分红汇总

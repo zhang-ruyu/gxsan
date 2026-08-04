@@ -55,7 +55,6 @@ type Holding struct {
 	Name         string  `yaml:"name"`
 	Shares       int     `yaml:"shares"`
 	AvgCost      float64 `yaml:"avg_cost"`
-	Account      string  `yaml:"account,omitempty"` // 所属账户（三账户体系）
 	CurrentPrice float64 `yaml:"current_price,omitempty"`
 	MarketValue  float64 `json:"market_value,omitempty"`
 	Dividend     float64 `yaml:"dividend,omitempty"`

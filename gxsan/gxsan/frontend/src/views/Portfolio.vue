@@ -18,10 +18,10 @@
     </div>
 
     <div v-else>
-      <!-- 持仓列表（按账户分组 · 三账户体系） -->
-      <div class="card" v-for="(group, acc) in grouped" :key="acc">
+      <!-- 持仓列表 -->
+      <div class="card">
         <div class="card-header">
-          <span class="card-title">{{ acc }}（{{ group.length }}只 · 市值 ¥{{ formatNumber(groupMarketValue(group)) }}）</span>
+          <span class="card-title">持仓（{{ holdings.length }}只 · 总市值 ¥{{ formatNumber(totalMarketValue) }}）</span>
         </div>
         <table class="table">
           <thead>
@@ -122,21 +122,13 @@ export default {
     }
   },
   computed: {
-    grouped() {
-      const g = {}
-      for (const s of this.holdings) {
-        const k = s.account || '未分配'
-        ;(g[k] = g[k] || []).push(s)
-      }
-      return g
+    totalMarketValue() {
+      return this.holdings.reduce((sum, s) => sum + (s.market_value || 0), 0)
     }
   },
   methods: {
     formatNumber(num) {
       return num.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
-    },
-    groupMarketValue(group) {
-      return group.reduce((sum, s) => sum + (s.market_value || 0), 0)
     },
     async refreshData() {
       try {

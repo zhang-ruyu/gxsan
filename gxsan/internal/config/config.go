@@ -140,15 +140,12 @@ func (m *Manager) UpdateStock(code, name string, targetYield float64) error {
 	return fmt.Errorf("股票 %s 不存在", code)
 }
 
-// AddHolding 添加持仓（account 指定所属账户，可留空）
-func (m *Manager) AddHolding(code, name string, shares int, avgCost float64, account string) error {
+// AddHolding 添加持仓
+func (m *Manager) AddHolding(code, name string, shares int, avgCost float64) error {
 	for i, h := range m.Config.Portfolio {
 		if h.Code == code {
 			m.Config.Portfolio[i].Shares = shares
 			m.Config.Portfolio[i].AvgCost = avgCost
-			if account != "" {
-				m.Config.Portfolio[i].Account = account
-			}
 			return m.Save()
 		}
 	}
@@ -158,22 +155,10 @@ func (m *Manager) AddHolding(code, name string, shares int, avgCost float64, acc
 		Name:    name,
 		Shares:  shares,
 		AvgCost: avgCost,
-		Account: account,
 	}
 
 	m.Config.Portfolio = append(m.Config.Portfolio, holding)
 	return m.Save()
-}
-
-// SetHoldingAccount 设置持仓所属账户（三账户体系）
-func (m *Manager) SetHoldingAccount(code, account string) error {
-	for i := range m.Config.Portfolio {
-		if m.Config.Portfolio[i].Code == code {
-			m.Config.Portfolio[i].Account = account
-			return m.Save()
-		}
-	}
-	return fmt.Errorf("持仓 %s 不存在", code)
 }
 
 // UpdateHolding 更新持仓
@@ -208,34 +193,6 @@ func (m *Manager) SetFund(available float64) error {
 func (m *Manager) SetMaxPosition(pct float64) error {
 	m.Config.Fund.MaxPositionPct = pct
 	return m.Save()
-}
-
-// AddAccount 添加账户（三账户体系）
-func (m *Manager) AddAccount(name, accType string) error {
-	for _, a := range m.Config.Accounts {
-		if a.Name == name {
-			return fmt.Errorf("账户 %s 已存在", name)
-		}
-	}
-	m.Config.Accounts = append(m.Config.Accounts, model.Account{Name: name, Type: accType})
-	return m.Save()
-}
-
-// RemoveAccount 删除账户
-func (m *Manager) RemoveAccount(name string) error {
-	for i, a := range m.Config.Accounts {
-		if a.Name == name {
-			m.Config.Accounts = append(m.Config.Accounts[:i], m.Config.Accounts[i+1:]...)
-			// 将归属该账户的持仓置空
-			for j := range m.Config.Portfolio {
-				if m.Config.Portfolio[j].Account == name {
-					m.Config.Portfolio[j].Account = ""
-				}
-			}
-			return m.Save()
-		}
-	}
-	return fmt.Errorf("账户 %s 不存在", name)
 }
 
 // SetLifecycleStage 设置生命周期阶段（1启动 2滚雪球 3自由 4收获）

@@ -10,7 +10,6 @@ type Config struct {
 	Fund               FundConfig    `yaml:"fund"`
 	Watchlist          []StockConfig `yaml:"watchlist"`
 	Portfolio          []Holding     `yaml:"portfolio"`
-	Accounts           []Account     `yaml:"accounts"`
 }
 
 // FindStock 在监控列表中查找指定代码的股票配置，找不到返回 nil
@@ -37,6 +36,5 @@ func DefaultConfig() *Config {
 		},
 		Watchlist: []StockConfig{},
 		Portfolio: []Holding{},
-		Accounts:  DefaultAccounts(),
 	}
 }
