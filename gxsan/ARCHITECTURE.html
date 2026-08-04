@@ -94,7 +94,8 @@
 <li><code>GetPension(monthly, invest, years, rate)</code>、<code>CompareStocks(codeA, codeB)</code>、<code>RealEstateToEquity(...)</code></li>
 <li><code>GetCalendar(days)</code>：返回<strong>文本</strong>报告（前端按行解析），不走 JSON</li>
 <li><strong><code>GetDividendSummary()</code>（#4 新增）</strong>：返回 <code>model.DividendSummary</code> JSON，按自然年汇总分红</li>
-<li><code>SetLifecycleStage</code> / <code>SetConfig</code> 等</li>
+<li><strong>建议引擎（阶段一 MVP）</strong>：<code>GetActionAdvice()</code> 返回 <code>[]model.ActionAdvice</code>（每只持仓的 买/卖/等 + 金额 + 理由，复用 <code>divStrategy</code>+<code>gridStrategy</code>）；<code>GetDashboard()</code> 返回总资产/年化分红/<code>target_annual_dividend</code> 进度条/生命周期阶段 + 行动提示汇总；<code>CorrectHoldingCost(code,totalCost)</code> 以真实投入总额推导精确每股成本</li>
+<li><code>SetLifecycleStage</code> / <code>SetConfig</code>（含 <code>target_annual_dividend</code>） 等</li>
 </ul>
 <p>运行 <code>wails dev</code> / <code>wails build</code> 后，<code>frontend/src/wailsjs/</code> 自动生成绑定（App.js / App.d.ts）。</p>
 <blockquote>
@@ -103,7 +104,7 @@
 </blockquote>
 <h2>5. 前端多页面</h2>
 <ul>
-<li>路由（<code>router/index.js</code>）：<code>/</code>（Home）、<code>/detail/:code</code>（Detail）、<code>/portfolio</code>（Portfolio）、
+<li>路由（<code>router/index.js</code>）：<code>/</code>（Home）、<code>/dashboard</code>（总览驾驶舱，阶段一 MVP）、<code>/detail/:code</code>（Detail）、<code>/portfolio</code>（Portfolio）、
   <code>/dividend</code>（分红汇总，#4 新增）、<code>/pension</code>（养老测算）、<code>/conversion</code>（资产转换）、<code>/calendar</code>、<code>/settings</code></li>
 <li>侧栏（<code>Sidebar.vue</code>）：导航菜单</li>
 <li><strong>通用工具</strong>（<code>utils/</code>）：</li>

@@ -91,3 +91,25 @@ type YearDividend struct {
 	TotalDividend float64 `json:"total_dividend"` // 该年分红总额（各持仓当年每股分红×股数）
 	Holdings      int     `json:"holdings"`       // 参与该年分红的持仓只数
 }
+
+// ActionAdvice 单只持仓的行动提示（建议引擎 MVP 输出）
+// 复用现有 divStrategy / gridStrategy 信号，给出 买/卖/等 行动 + 金额 + 理由。
+type ActionAdvice struct {
+	Code                string  `json:"code"`
+	Name                string  `json:"name"`
+	Shares              int     `json:"shares"`
+	AvgCost             float64 `json:"avg_cost"`
+	Price               float64 `json:"price"`
+	YieldOnCost         float64 `json:"yield_on_cost"`  // 成本股息率
+	CurrentYield        float64 `json:"current_yield"`  // 当前静态股息率
+	TargetYield         float64 `json:"target_yield"`   // 目标股息率
+	Action              string  `json:"action"`         // BUY / HOLD / SELL / WATCH
+	SuggestedBuyAmount  float64 `json:"suggested_buy_amount"`  // ¥（Action=BUY 时有效）
+	SuggestedSellShares int     `json:"suggested_sell_shares"` // 股（Action=SELL 时有效）
+	Reason              string  `json:"reason"`
+	Constraint          string  `json:"constraint"` // 约束提示（资金不足/已达上限/未设网格等）
+	Priority            int     `json:"priority"`   // 数字越小越优先执行
+	CheapPrice          float64 `json:"cheap_price"`
+	FairPrice           float64 `json:"fair_price"`
+	CostCorrectable     bool    `json:"cost_correctable"` // 成本可能因四舍五入失真（尚无真实投入总额记录），提示可做一键修正
+}

@@ -7,6 +7,7 @@ type Config struct {
 	CheapDiscount      float64       `yaml:"cheap_discount"`
 	ExpensivePremium   float64       `yaml:"expensive_premium"`
 	LifecycleStage     int           `yaml:"lifecycle_stage"` // 1启动 2滚雪球 3自由 4收获
+	TargetAnnualDividend float64     `yaml:"target_annual_dividend"` // 养老目标：目标年分红（元），用于退休金进度条
 	Fund               FundConfig    `yaml:"fund"`
 	Watchlist          []StockConfig `yaml:"watchlist"`
 	Portfolio          []Holding     `yaml:"portfolio"`
@@ -30,6 +31,7 @@ func DefaultConfig() *Config {
 		CheapDiscount:      0.8,
 		ExpensivePremium:   1.2,
 		LifecycleStage:     2,
+		TargetAnnualDividend: 0,
 		Fund: FundConfig{
 			AvailableFund:  0,
 			MaxPositionPct: 30,

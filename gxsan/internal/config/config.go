@@ -204,6 +204,25 @@ func (m *Manager) SetLifecycleStage(stage int) error {
 	return m.Save()
 }
 
+// CorrectHoldingCost 一键修正持仓成本：以真实投入总额推导精确每股成本
+// 解决 A股「总价÷股数」产生多位小数、手动录入每股成本被四舍五入失真的问题。
+func (m *Manager) CorrectHoldingCost(code string, totalCost float64) error {
+	for i, h := range m.Config.Portfolio {
+		if h.Code == code {
+			if h.Shares <= 0 {
+				return fmt.Errorf("持仓 %s 股数为 0，无法修正成本", code)
+			}
+			if totalCost < 0 {
+				return fmt.Errorf("投入总额不能为负")
+			}
+			m.Config.Portfolio[i].TotalCost = totalCost
+			m.Config.Portfolio[i].AvgCost = totalCost / float64(h.Shares) // 精确推导，保留 float64 全精度
+			return m.Save()
+		}
+	}
+	return fmt.Errorf("持仓 %s 不存在", code)
+}
+
 // SetGrid 设置网格
 func (m *Manager) SetGrid(code string, isBuy bool, level int, yield float64, amount float64) error {
 	stock := m.GetStockConfig(code)

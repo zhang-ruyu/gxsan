@@ -271,6 +271,11 @@ func (a *App) SetConfig(key string, value string) error {
 		if _, err := fmt.Sscanf(value, "%f", &v); err == nil {
 			a.configMgr.Config.Fund.MaxPositionPct = v
 		}
+	case "target_annual_dividend":
+		var v float64
+		if _, err := fmt.Sscanf(value, "%f", &v); err == nil {
+			a.configMgr.Config.TargetAnnualDividend = v
+		}
 	}
 	return a.configMgr.Save()
 }
@@ -443,6 +448,86 @@ func (a *App) GetDividendSummary() (string, error) {
 		TotalHoldings:       len(holdings),
 	}
 	return toJSON(summary), nil
+}
+
+// ========== 建议引擎 (Phase 1 MVP) ==========
+
+// GetActionAdvice 为持仓组合生成行动提示（买/卖/等 + 金额 + 理由）
+// 复用现有 divStrategy + gridStrategy，遍历 config.Portfolio。
+func (a *App) GetActionAdvice() (string, error) {
+	codes := make([]string, 0, len(a.configMgr.Config.Portfolio))
+	for _, h := range a.configMgr.Config.Portfolio {
+		codes = append(codes, h.Code)
+	}
+	stocks := a.fetchStocksForCodes(codes)
+	pool := a.monitor.BuildPool(stocks)
+	advices := a.monitor.GenerateHoldingRecommendations(pool, stocks)
+	return toJSON(advices), nil
+}
+
+// GetDashboard 总览：总资产 / 当前年化分红 / 退休金进度条 + 行动提示汇总
+func (a *App) GetDashboard() (string, error) {
+	holdings := a.configMgr.Config.Portfolio
+	codes := make([]string, 0, len(holdings))
+	for _, h := range holdings {
+		codes = append(codes, h.Code)
+	}
+	stocks := a.fetchStocksForCodes(codes)
+	pool := a.monitor.BuildPool(stocks)
+	advices := a.monitor.GenerateHoldingRecommendations(pool, stocks)
+
+	totalMV := 0.0
+	for _, h := range pool.Holdings {
+		totalMV += h.MarketValue
+	}
+
+	totalAnnual := 0.0
+	for _, h := range holdings {
+		var dps float64
+		if s, ok := stocks[h.Code]; ok {
+			dps = s.DividendPerShare
+		}
+		totalAnnual += float64(h.Shares) * dps
+	}
+
+	target := a.configMgr.Config.TargetAnnualDividend
+	progress := 0.0
+	if target > 0 {
+		progress = totalAnnual / target * 100
+	}
+
+	out := map[string]interface{}{
+		"total_assets":            pool.TotalAsset,
+		"total_market_value":      totalMV,
+		"available_fund":          pool.AvailableFund,
+		"current_annual_dividend": totalAnnual,
+		"target_annual_dividend":  target,
+		"progress_pct":            progress,
+		"lifecycle_stage":         model.LifecycleStageName(a.configMgr.Config.LifecycleStage),
+		"holdings_count":          len(holdings),
+		"advice":                  advices,
+		"buy_count":               countAdvice(advices, "BUY"),
+		"sell_count":              countAdvice(advices, "SELL"),
+		"hold_count":              countAdvice(advices, "HOLD"),
+		"watch_count":             countAdvice(advices, "WATCH"),
+	}
+	return toJSON(out), nil
+}
+
+// CorrectHoldingCost 一键修正持仓成本：以真实投入总额推导精确每股成本
+func (a *App) CorrectHoldingCost(code string, totalCost float64) error {
+	return a.configMgr.CorrectHoldingCost(code, totalCost)
+}
+
+// countAdvice 统计某类行动的数量
+func countAdvice(advices []model.ActionAdvice, action string) int {
+	n := 0
+	for _, ad := range advices {
+		if ad.Action == action {
+			n++
+		}
+	}
+	return n
 }
 
 // SetLifecycleStage 设置生命周期阶段（1-4）

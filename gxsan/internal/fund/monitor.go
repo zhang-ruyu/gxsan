@@ -2,6 +2,7 @@ package fund
 
 import (
 	"fmt"
+	"math"
 	"sort"
 
 	"github.com/user/gxsan/internal/data"
@@ -137,6 +138,126 @@ func (m *Monitor) GenerateRecommendations(pool *model.InvestPool, stocks map[str
 	})
 
 	return recommends
+}
+
+// GenerateHoldingRecommendations 为「持仓组合」生成行动提示（建议引擎 MVP 核心，
+// 复用现有 divStrategy + gridStrategy）。
+// 与 GenerateRecommendations（仅跑监控列表）不同，本方法遍历 config.Portfolio，
+// 对每只持仓给出 买/卖/等 行动 + 建议金额 + 触发理由。
+func (m *Monitor) GenerateHoldingRecommendations(pool *model.InvestPool, stocks map[string]*model.Stock) []model.ActionAdvice {
+	divStrategy := strategy.NewDividendStrategy()
+	gridStrategy := strategy.NewGridStrategy()
+
+	var advices []model.ActionAdvice
+	for _, h := range m.config.Portfolio {
+		stock, ok := stocks[h.Code]
+		if !ok {
+			continue
+		}
+
+		divSig := divStrategy.Analyze(stock, m.config)
+		gridSig := gridStrategy.Analyze(stock, m.config) // 未配置网格时返回 nil
+
+		holding := pool.Holdings[h.Code]
+		currentValue := holding.MarketValue
+		maxAllowed := pool.MaxPosition - currentValue
+		if maxAllowed < 0 {
+			maxAllowed = 0
+		}
+
+		advice := model.ActionAdvice{
+			Code:             h.Code,
+			Name:             h.Name,
+			Shares:           h.Shares,
+			AvgCost:          h.AvgCost,
+			Price:            stock.Price,
+			YieldOnCost:      holding.YieldOnCost,
+			CurrentYield:     divSig.CurrentYield,
+			TargetYield:      divSig.TargetYield,
+			CheapPrice:       divSig.CheapPrice,
+			FairPrice:        divSig.FairPrice,
+			CostCorrectable:   h.TotalCost == 0, // 尚无真实投入总额记录 → 提示可一键修正
+		}
+
+		// 默认采用股息策略信号（价值维度：BUY/HOLD/WATCH/SELL）
+		action := divSig.Action
+		reason := divSig.Reason
+		priority := 5
+		switch action {
+		case "BUY":
+			priority = 2
+		case "SELL":
+			priority = 1
+		default: // HOLD / WATCH
+			priority = 5
+		}
+
+		// 若配置了网格，则以网格信号为准（含更具体的金额）
+		if gridSig != nil {
+			action = gridSig.Action
+			reason = gridSig.Reason
+			switch gridSig.Action {
+			case "BUY":
+				priority = 6 - gridSig.BuyLevel
+			case "SELL":
+				priority = gridSig.SellLevel
+			default:
+				priority = 5
+			}
+		}
+
+		advice.Action = action
+		advice.Reason = reason
+		advice.Priority = priority
+
+		switch action {
+		case "BUY":
+			amount := 0.0
+			if gridSig != nil {
+				amount = gridSig.BuyAmount
+			} else {
+				// 未设网格：按可用资金 / 持仓上限给出一个默认买入额
+				amount = math.Min(m.config.Fund.AvailableFund, maxAllowed)
+				advice.Constraint = "未配置网格，按可用资金/持仓上限建议"
+			}
+			// 资金与持仓上限约束
+			if amount > m.config.Fund.AvailableFund {
+				amount = m.config.Fund.AvailableFund
+				advice.Constraint = "可用资金不足"
+			}
+			if amount > maxAllowed {
+				amount = maxAllowed
+				advice.Constraint = fmt.Sprintf("已达单只股票持仓上限%.0f%%", m.config.Fund.MaxPositionPct)
+			}
+			advice.SuggestedBuyAmount = amount
+		case "SELL":
+			pct := 0.0
+			if gridSig != nil {
+				pct = gridSig.SellPercent
+			} else {
+				pct = 20 // 无网格时温和减仓 20%
+			}
+			sellShares := int(float64(h.Shares) * pct / 100)
+			if sellShares == 0 {
+				sellShares = 1
+			}
+			if sellShares > h.Shares {
+				sellShares = h.Shares
+			}
+			advice.SuggestedSellShares = sellShares
+		}
+
+		advices = append(advices, advice)
+	}
+
+	sort.Slice(advices, func(i, j int) bool {
+		if advices[i].Priority != advices[j].Priority {
+			return advices[i].Priority < advices[j].Priority
+		}
+		return advices[i].Code < advices[j].Code
+	})
+
+	return advices
 }
 
 // GetPoolSummary 获取投资池摘要

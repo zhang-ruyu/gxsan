@@ -31,6 +31,11 @@
           <label class="form-label">昂贵价溢价 (%)</label>
           <input class="form-input" type="number" step="0.01" v-model.number="config.expensive_premium" @change="saveConfig('expensive_premium', config.expensive_premium)">
         </div>
+        <div class="form-group">
+          <label class="form-label">目标年分红 (¥)</label>
+          <input class="form-input" type="number" step="100" v-model.number="config.target_annual_dividend" @change="saveConfig('target_annual_dividend', config.target_annual_dividend)">
+          <span class="form-hint">退休金进度条的目标值：你希望组合每年分红达到的金额</span>
+        </div>
       </div>
 
       <!-- 资金设置 -->
@@ -119,7 +124,8 @@ export default {
         default_target_yield: 4,
         min_dividend_years: 3,
         cheap_discount: 0.8,
-        expensive_premium: 1.2
+        expensive_premium: 1.2,
+        target_annual_dividend: 0
       },
       fundInfo: {
         available_fund: 50000,
@@ -146,7 +152,8 @@ export default {
           default_target_yield: configData.default_target_yield || 4,
           min_dividend_years: configData.min_dividend_years || 3,
           cheap_discount: configData.cheap_discount || 0.8,
-          expensive_premium: configData.expensive_premium || 1.2
+          expensive_premium: configData.expensive_premium || 1.2,
+          target_annual_dividend: configData.target_annual_dividend || 0
         }
 
         const fundStr = await GetFundInfo()
@@ -263,5 +270,12 @@ export default {
   text-align: center;
   padding: 20px;
   color: #999;
+}
+
+.form-hint {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
 }
 </style>

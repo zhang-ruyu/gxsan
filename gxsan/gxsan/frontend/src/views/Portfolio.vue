@@ -35,11 +35,12 @@
               <th>盈亏</th>
               <th>收益率</th>
               <th>成本股息率</th>
+              <th>行动提示</th>
               <th>操作</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="stock in group" :key="stock.code">
+            <tr v-for="stock in holdings" :key="stock.code">
               <td class="font-bold">{{ stock.code }}</td>
               <td>{{ stock.name }}</td>
               <td>{{ stock.shares }}</td>
@@ -54,6 +55,24 @@
               </td>
               <td :class="stock.yield_on_cost > 0 ? 'text-orange' : ''">
                 {{ stock.yield_on_cost > 0 ? stock.yield_on_cost.toFixed(2) + '%' : '-' }}
+              </td>
+              <td class="advice-cell">
+                <template v-if="adviceMap[stock.code]">
+                  <SignalBadge :signal="adviceMap[stock.code].action" />
+                  <div class="advice-detail">
+                    <span v-if="adviceMap[stock.code].action === 'BUY'" class="text-orange">
+                      投入 ¥{{ formatNumber(adviceMap[stock.code].suggested_buy_amount) }}
+                    </span>
+                    <span v-else-if="adviceMap[stock.code].action === 'SELL'" class="text-red">
+                      卖 {{ adviceMap[stock.code].suggested_sell_shares }} 股
+                    </span>
+                    <span class="advice-reason">{{ adviceMap[stock.code].reason }}</span>
+                    <span v-if="adviceMap[stock.code].cost_correctable" class="cost-tip">
+                      ⚠️ 成本可能失真，可一键修正
+                    </span>
+                  </div>
+                </template>
+                <span v-else class="text-muted">—</span>
               </td>
               <td>
                 <button class="btn btn-sm btn-secondary" @click="editHolding(stock)">编辑</button>
@@ -88,6 +107,11 @@
           <label class="form-label">成本价 (元)</label>
           <input class="form-input" type="number" step="0.0001" v-model.number="formData.avg_cost" placeholder="5.0000">
         </div>
+        <div class="form-group">
+          <label class="form-label">真实投入总额 (元)</label>
+          <input class="form-input" type="number" step="0.01" v-model.number="formData.total_cost" placeholder="含手续费的实际花费，如 12345.67">
+          <span class="form-hint">填此项可一键推导精确每股成本（总价÷股数），避免手动录入被四舍五入</span>
+        </div>
         <div class="modal-actions">
           <button class="btn btn-secondary" @click="closeModal">取消</button>
           <button class="btn btn-primary" @click="saveHolding">{{ isEditing ? '保存' : '添加' }}</button>
@@ -98,23 +122,27 @@
 </template>
 
 <script>
-import { GetPortfolio, AddHolding, RemoveHolding } from '../../wailsjs/go/main/App'
+import { GetPortfolio, AddHolding, RemoveHolding, GetActionAdvice, CorrectHoldingCost } from '../../wailsjs/go/main/App'
 import { parseJSON } from '../utils/api'
 import { isPageVisible, isMarketOpen, refreshReason } from '../utils/market'
+import SignalBadge from '../components/SignalBadge.vue'
 
 export default {
   name: 'Portfolio',
+  components: { SignalBadge },
   data() {
     return {
       loading: true,
       holdings: [],
+      advices: [],
       showModal: false,
       isEditing: false,
       formData: {
         code: '',
         name: '',
         shares: 0,
-        avg_cost: 0
+        avg_cost: 0,
+        total_cost: 0
       },
       lastUpdate: '',
       refreshState: '',
@@ -124,11 +152,18 @@ export default {
   computed: {
     totalMarketValue() {
       return this.holdings.reduce((sum, s) => sum + (s.market_value || 0), 0)
+    },
+    adviceMap() {
+      const m = {}
+      for (const a of this.advices) {
+        m[a.code] = a
+      }
+      return m
     }
   },
   methods: {
     formatNumber(num) {
-      return num.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+      return Number(num || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
     },
     // 成本价按每股精度展示：最多4位小数、去尾零（A股总价/股数常产生4位小数）
     fmtCost(num) {
@@ -139,9 +174,13 @@ export default {
       try {
         this.refreshState = refreshReason()
         console.log('开始刷新持仓数据')
-        const portfolioStr = await GetPortfolio()
+        const [portfolioStr, adviceStr] = await Promise.all([
+          GetPortfolio(),
+          GetActionAdvice()
+        ])
         console.log('获取到持仓:', portfolioStr)
         this.holdings = parseJSON(portfolioStr)
+        this.advices = parseJSON(adviceStr)
         this.lastUpdate = new Date().toLocaleTimeString('zh-CN')
       } catch (error) {
         console.error('获取持仓数据失败:', error)
@@ -151,7 +190,7 @@ export default {
     },
     openAddModal() {
       this.isEditing = false
-      this.formData = { code: '', name: '', shares: 0, avg_cost: 0 }
+      this.formData = { code: '', name: '', shares: 0, avg_cost: 0, total_cost: 0 }
       this.showModal = true
     },
     editHolding(stock) {
@@ -160,7 +199,8 @@ export default {
         code: stock.code,
         name: stock.name,
         shares: stock.shares,
-        avg_cost: stock.avg_cost
+        avg_cost: stock.avg_cost,
+        total_cost: 0
       }
       this.showModal = true
     },
@@ -169,10 +209,11 @@ export default {
     },
     async saveHolding() {
       try {
-        if (this.isEditing) {
-          await AddHolding(this.formData.code, this.formData.name, this.formData.shares, this.formData.avg_cost)
-        } else {
-          await AddHolding(this.formData.code, this.formData.name, this.formData.shares, this.formData.avg_cost)
+        const { code, name, shares, avg_cost, total_cost } = this.formData
+        await AddHolding(code, name, shares, Number(avg_cost) || 0)
+        // 若填了真实投入总额，用其推导精确每股成本（一键修正）
+        if (Number(total_cost) > 0) {
+          await CorrectHoldingCost(code, Number(total_cost))
         }
         this.closeModal()
         await this.refreshData()
@@ -246,6 +287,35 @@ export default {
 .text-green { color: var(--success-color); }
 .text-red { color: var(--danger-color); }
 .text-orange { color: #e8590c; }
+.text-muted { color: var(--text-muted); }
+
+.advice-cell {
+  max-width: 240px;
+}
+
+.advice-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+.advice-reason {
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.cost-tip {
+  color: #e8590c;
+}
+
+.form-hint {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
 
 .modal {
   position: fixed;
@@ -264,7 +334,7 @@ export default {
   background: white;
   padding: 24px;
   border-radius: 8px;
-  width: 400px;
+  width: 420px;
   max-width: 90%;
 }
 

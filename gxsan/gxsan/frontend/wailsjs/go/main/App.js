@@ -14,6 +14,14 @@ export function CompareStocks(arg1, arg2) {
   return window['go']['main']['App']['CompareStocks'](arg1, arg2);
 }
 
+export function CorrectHoldingCost(arg1, arg2) {
+  return window['go']['main']['App']['CorrectHoldingCost'](arg1, arg2);
+}
+
+export function GetActionAdvice() {
+  return window['go']['main']['App']['GetActionAdvice']();
+}
+
 export function GetAnalysisReport() {
   return window['go']['main']['App']['GetAnalysisReport']();
 }
@@ -28,6 +36,10 @@ export function GetConfig() {
 
 export function GetConfigFile() {
   return window['go']['main']['App']['GetConfigFile']();
+}
+
+export function GetDashboard() {
+  return window['go']['main']['App']['GetDashboard']();
 }
 
 export function GetDataDir() {

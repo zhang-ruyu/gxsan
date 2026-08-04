@@ -55,6 +55,7 @@ type Holding struct {
 	Name         string  `yaml:"name"`
 	Shares       int     `yaml:"shares"`
 	AvgCost      float64 `yaml:"avg_cost"`
+	TotalCost    float64 `yaml:"total_cost"` // 真实投入总额（含费用），用于一键修正推导精确每股成本
 	CurrentPrice float64 `yaml:"current_price,omitempty"`
 	MarketValue  float64 `json:"market_value,omitempty"`
 	Dividend     float64 `yaml:"dividend,omitempty"`

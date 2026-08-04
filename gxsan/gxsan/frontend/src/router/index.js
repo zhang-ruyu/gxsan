@@ -7,9 +7,11 @@ import Settings from '../views/Settings.vue'
 import Pension from '../views/Pension.vue'
 import Conversion from '../views/Conversion.vue'
 import DividendSummary from '../views/DividendSummary.vue'
+import Dashboard from '../views/Dashboard.vue'
 
 const routes = [
   { path: '/', name: 'Home', component: Home },
+  { path: '/dashboard', name: 'Dashboard', component: Dashboard },
   { path: '/detail/:code', name: 'Detail', component: Detail, props: true },
   { path: '/portfolio', name: 'Portfolio', component: Portfolio },
   { path: '/pension', name: 'Pension', component: Pension },

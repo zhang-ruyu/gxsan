@@ -7,6 +7,10 @@ export function AddWatchlist(arg1:string,arg2:string,arg3:number):Promise<void>;
 
 export function CompareStocks(arg1:string,arg2:string):Promise<string>;
 
+export function CorrectHoldingCost(arg1:string,arg2:number):Promise<void>;
+
+export function GetActionAdvice():Promise<string>;
+
 export function GetAnalysisReport():Promise<string>;
 
 export function GetCalendar(arg1:number):Promise<string>;
@@ -14,6 +18,8 @@ export function GetCalendar(arg1:number):Promise<string>;
 export function GetConfig():Promise<string>;
 
 export function GetConfigFile():Promise<string>;
+
+export function GetDashboard():Promise<string>;
 
 export function GetDataDir():Promise<string>;
 

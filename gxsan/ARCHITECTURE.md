@@ -93,7 +93,8 @@ gxsan/                         # 根模块（CLI）
 - `GetPension(monthly, invest, years, rate)`、`CompareStocks(codeA, codeB)`、`RealEstateToEquity(...)`
 - `GetCalendar(days)`：返回**文本**报告（前端按行解析），不走 JSON
 - **`GetDividendSummary()`（#4 新增）**：返回 `model.DividendSummary` JSON，按自然年汇总分红
-- `SetLifecycleStage` / `SetConfig` 等
+- **建议引擎（阶段一 MVP）**：`GetActionAdvice()` 返回 `[]model.ActionAdvice`（每只持仓的 买/卖/等 + 金额 + 理由，复用 `divStrategy`+`gridStrategy`）；`GetDashboard()` 返回总资产/年化分红/`target_annual_dividend` 进度条/生命周期阶段 + 行动提示汇总；`CorrectHoldingCost(code,totalCost)` 以真实投入总额推导精确每股成本
+- `SetLifecycleStage` / `SetConfig`（含 `target_annual_dividend`） 等
 
 运行 `wails dev` / `wails build` 后，`frontend/src/wailsjs/` 自动生成绑定（App.js / App.d.ts）。
 > 注：本机 Go 工具链较新时，Wails 旧 `x/tools` bindgen 可能 panic（unsupported version）；
@@ -101,7 +102,7 @@ gxsan/                         # 根模块（CLI）
 
 ## 5. 前端多页面
 
-- 路由（`router/index.js`）：`/`（Home）、`/detail/:code`（Detail）、`/portfolio`（Portfolio）、
+- 路由（`router/index.js`）：`/`（Home）、`/dashboard`（总览驾驶舱，阶段一 MVP）、`/detail/:code`（Detail）、`/portfolio`（Portfolio）、
   `/dividend`（分红汇总，#4 新增）、`/pension`（养老测算）、`/conversion`（资产转换）、`/calendar`、`/settings`
 - 侧栏（`Sidebar.vue`）：导航菜单
 - **通用工具**（`utils/`）：

@@ -9,6 +9,10 @@
         <span class="icon"> </span>
         <span>分析首页</span>
       </router-link>
+      <router-link to="/dashboard" class="nav-item" active-class="active">
+        <span class="icon"> </span>
+        <span>总览驾驶舱</span>
+      </router-link>
       <router-link to="/portfolio" class="nav-item" active-class="active">
         <span class="icon"> </span>
         <span>持仓管理</span>
