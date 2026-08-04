@@ -144,6 +144,7 @@ model.* (领域模型)  ←→  config.Manager (yaml 持久化)
 `wails build` 在 Go 1.26.5 下会因自带 bindgen（`golang.org/x/tools@v0.1.12`）读取新版本导出数据而崩溃
 （`panic: unsupported version: 2`）。`main.go` 用 `//go:embed all:frontend/dist` 无条件嵌入前端、Go↔前端绑定
 走运行时反射（`Bind: []interface{}{app}`），因此**直接用 `go build` 即可产出完整桌面程序**，无需 wails build。
+**但必须带 Wails 生产标签 `-tags desktop,production`**，否则运行时 Wails 会弹窗报错；`-ldflags="-H windowsgui"` 可隐藏黑色控制台窗口。
 
 ```bash
 # 推荐：一键脚本（自动构建前端 + 桌面 exe）
@@ -151,10 +152,10 @@ cd C:\soft\gxsan\gxsan && build.bat
 
 # 或手动两步
 cd C:\soft\gxsan\gxsan\frontend && npm run build   # 前端产物 -> frontend/dist
-cd C:\soft\gxsan\gxsan && go build -o gxsan.exe .   # 桌面程序 -> gxsan\gxsan\gxsan.exe
+cd C:\soft\gxsan\gxsan && go build -tags desktop,production -ldflags="-H windowsgui" -o gxsan.exe .   # 桌面程序 -> gxsan\gxsan\gxsan.exe
 ```
 
-- **永远不要跑 `wails build`**：Go 1.26.5 下必崩；已用 `go build` 替代。
+- **永远不要跑 `wails build`**：Go 1.26.5 下必崩；已用 `go build` 替代，但要记得加 `-tags desktop,production`。
 - Go 版本：**任意 ≥1.21 均可**，`go build` 不卡版本；`go.mod` 里的 `go 1.21` 仅作语言特性声明。
 - 新增后端方法（`app.go` 中导出给前端的函数）后：手工在 `frontend/wailsjs/go/main/App.js` 补一项导出
   （格式见该文件既有项）；若本机 Go/Wails 工具链兼容，跑 `wails dev` 会自动重生成该文件覆盖。

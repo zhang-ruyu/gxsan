@@ -15,8 +15,10 @@ if errorlevel 1 (
 )
 cd ..
 
-echo [2/2] 构建桌面 exe（go build，禁止使用 wails build）...
-go build -o gxsan.exe .
+echo [2/2] 构建桌面 exe（go build + Wails 生产标签，禁止使用 wails build）...
+REM Wails v2 运行时要求生产构建必须带 desktop,production 标签；
+REM -H windowsgui 让 exe 以 GUI 方式启动（不显示黑色控制台窗口）。
+go build -tags desktop,production -ldflags="-H windowsgui" -o gxsan.exe .
 if errorlevel 1 (
     echo go build 失败，已中止。
     exit /b 1

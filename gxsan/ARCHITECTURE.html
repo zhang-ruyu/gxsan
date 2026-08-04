@@ -141,15 +141,16 @@ model.* (领域模型)  ←→  config.Manager (yaml 持久化)
 <h3>7.1 构建桌面 exe（关键：用 go build，不要用 wails build）</h3>
 <p><code>wails build</code> 在 Go 1.26.5 下会因自带 bindgen（<code>golang.org/x/tools@v0.1.12</code>）读取新版本导出数据而崩溃
 （<code>panic: unsupported version: 2</code>）。<code>main.go</code> 用 <code>//go:embed all:frontend/dist</code> 无条件嵌入前端、Go↔前端绑定
-走运行时反射（<code>Bind: []interface{}{app}</code>），因此<strong>直接用 <code>go build</code> 即可产出完整桌面程序</strong>，无需 wails build。</p>
+走运行时反射（<code>Bind: []interface{}{app}</code>），因此<strong>直接用 <code>go build</code> 即可产出完整桌面程序</strong>，无需 wails build。<br>
+<strong>但必须带 Wails 生产标签 <code>-tags desktop,production</code></strong>，否则运行时 Wails 会弹窗报错；<code>-ldflags="-H windowsgui"</code> 可隐藏黑色控制台窗口。</p>
 <pre><code class="language-bash"># 推荐：一键脚本（自动构建前端 + 桌面 exe）
 cd C:\soft\gxsan\gxsan &amp;&amp; build.bat
 
 # 或手动两步
 cd C:\soft\gxsan\gxsan\frontend &amp;&amp; npm run build   # 前端产物 -&gt; frontend/dist
-cd C:\soft\gxsan\gxsan &amp;&amp; go build -o gxsan.exe .   # 桌面程序 -&gt; gxsan\gxsan\gxsan.exe</code></pre>
+cd C:\soft\gxsan\gxsan &amp;&amp; go build -tags desktop,production -ldflags="-H windowsgui" -o gxsan.exe .   # 桌面程序 -&gt; gxsan\gxsan\gxsan.exe</code></pre>
 <ul>
-<li><strong>永远不要跑 <code>wails build</code></strong>：Go 1.26.5 下必崩；已用 <code>go build</code> 替代。</li>
+<li><strong>永远不要跑 <code>wails build</code></strong>：Go 1.26.5 下必崩；已用 <code>go build</code> 替代，但要记得加 <code>-tags desktop,production</code>。</li>
 <li>Go 版本：<strong>任意 ≥1.21 均可</strong>，<code>go build</code> 不卡版本；<code>go.mod</code> 里的 <code>go 1.21</code> 仅作语言特性声明。</li>
 <li>新增后端方法（<code>app.go</code> 中导出给前端的函数）后：手工在 <code>frontend/wailsjs/go/main/App.js</code> 补一项导出
 （格式见该文件既有项）；若本机 Go/Wails 工具链兼容，跑 <code>wails dev</code> 会自动重生成该文件覆盖。</li>
