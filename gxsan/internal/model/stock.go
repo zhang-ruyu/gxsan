@@ -31,8 +31,8 @@ type GridStrategy struct {
 
 // GridLevel 网格档位
 type GridLevel struct {
-	Yield  float64 `yaml:"yield"`
-	Amount float64 `yaml:"amount"`
+	Yield  float64 `yaml:"yield" json:"yield"`
+	Amount float64 `yaml:"amount" json:"amount"`
 }
 
 // DividendRecord 分红记录
@@ -61,4 +61,5 @@ type Holding struct {
 	MarketValue  float64 `json:"market_value,omitempty"`
 	Dividend     float64 `yaml:"dividend,omitempty"`
 	YieldOnCost  float64 `yaml:"yield_on_cost,omitempty"`
+	GridStrategy GridStrategy `yaml:"grid_strategy,omitempty"` // 网格策略：可编辑的加仓/减仓档位（股息率阈值→金额）
 }

@@ -93,7 +93,7 @@
         </div>
       </div>
 
-      <!-- 3. 跟踪推荐概要 -->
+      <!-- 3. 跟踪推荐概要（异步加载，不阻塞首屏） -->
       <div class="card">
         <div class="card-header">
           <span class="card-title">
@@ -103,38 +103,44 @@
           <router-link to="/tracking" class="link-btn">查看全部 →</router-link>
         </div>
 
-        <div class="tracking-summary">
-          <div
-            v-for="cat in trackingCategories"
-            :key="cat.name"
-            class="tracking-cat-tag"
-            @click="goToTracking"
-          >
-            <span class="cat-name">{{ cat.name }}</span>
-            <span class="cat-count">{{ cat.stocks.length }}</span>
-          </div>
+        <div v-if="trackingLoading" class="loading-inline">
+          <div class="loading-spinner small"></div>
+          <span class="text-muted small">正在加载跟踪推荐...</span>
         </div>
-
-        <div v-if="topYieldStocks.length > 0" class="top-yield-list">
-          <div class="top-yield-title">高息标的</div>
-          <div class="top-yield-grid">
+        <template v-else>
+          <div class="tracking-summary">
             <div
-              v-for="s in topYieldStocks"
-              :key="s.code"
-              class="top-yield-card"
-              @click="goToDetail(s.code)"
+              v-for="cat in trackingCategories"
+              :key="cat.name"
+              class="tracking-cat-tag"
+              @click="goToTracking"
             >
-              <div class="ty-name">{{ s.name }}</div>
-              <div class="ty-code">{{ s.code }}</div>
-              <div class="ty-yield" :class="s.current_yield >= 5 ? 'text-red' : ''">
-                {{ s.current_yield > 0 ? s.current_yield.toFixed(2) + '%' : '—' }}
-              </div>
-              <div class="ty-type" :class="s.asset_type === '弱周期' ? 'tag-weak' : 'tag-strong'">
-                {{ s.asset_type }}
+              <span class="cat-name">{{ cat.name }}</span>
+              <span class="cat-count">{{ cat.stocks.length }}</span>
+            </div>
+          </div>
+
+          <div v-if="topYieldStocks.length > 0" class="top-yield-list">
+            <div class="top-yield-title">高息标的</div>
+            <div class="top-yield-grid">
+              <div
+                v-for="s in topYieldStocks"
+                :key="s.code"
+                class="top-yield-card"
+                @click="goToDetail(s.code)"
+              >
+                <div class="ty-name">{{ s.name }}</div>
+                <div class="ty-code">{{ s.code }}</div>
+                <div class="ty-yield" :class="s.current_yield >= 5 ? 'text-red' : ''">
+                  {{ s.current_yield > 0 ? s.current_yield.toFixed(2) + '%' : '—' }}
+                </div>
+                <div class="ty-type" :class="s.asset_type === '弱周期' ? 'tag-weak' : 'tag-strong'">
+                  {{ s.asset_type }}
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        </template>
       </div>
     </div>
   </div>
@@ -167,6 +173,7 @@ export default {
       trackingCategories: [],
       lastUpdate: '',
       refreshState: '',
+      trackingLoading: true,
       refreshTimer: null
     }
   },
@@ -210,17 +217,19 @@ export default {
     async refreshData() {
       try {
         this.refreshState = refreshReason()
-        const [dashStr, trackStr] = await Promise.all([
-          GetDashboard(),
-          GetTrackingStocks()
-        ])
+        // 先出首页（持仓少，秒回），跟踪推荐 31 只异步加载，不阻塞首屏
+        const dashStr = await GetDashboard()
         this.dash = parseJSON(dashStr)
+        this.loading = false
+        const trackStr = await GetTrackingStocks()
         this.trackingCategories = parseJSON(trackStr) || []
+        this.trackingLoading = false
         this.lastUpdate = new Date().toLocaleTimeString('zh-CN')
       } catch (error) {
         console.error('获取数据失败:', error)
+        this.loading = false
+        this.trackingLoading = false
       }
-      this.loading = false
     },
     startAutoRefresh() {
       if (this.refreshTimer) clearInterval(this.refreshTimer)
@@ -418,4 +427,17 @@ export default {
 }
 .tag-weak { background: #dbeafe; color: #1d4ed8; }
 .tag-strong { background: #fef3c7; color: #b45309; }
+
+/* 跟踪区块异步加载占位 */
+.loading-inline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 8px;
+}
+.loading-spinner.small {
+  width: 18px;
+  height: 18px;
+  border-width: 2px;
+}
 </style>

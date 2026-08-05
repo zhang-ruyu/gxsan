@@ -6,13 +6,12 @@ import Calendar from '../views/Calendar.vue'
 import Settings from '../views/Settings.vue'
 import Tracking from '../views/Tracking.vue'
 import DividendSummary from '../views/DividendSummary.vue'
-import Dashboard from '../views/Dashboard.vue'
 
 const routes = [
   { path: '/', name: 'Home', component: Home },
-  { path: '/dashboard', name: 'Dashboard', component: Dashboard },
   { path: '/detail/:code', name: 'Detail', component: Detail, props: true },
   { path: '/portfolio', name: 'Portfolio', component: Portfolio },
+  { path: '/grid', name: 'Grid', component: Grid },
   { path: '/tracking', name: 'Tracking', component: Tracking },
   { path: '/dividend', name: 'DividendSummary', component: DividendSummary },
   { path: '/calendar', name: 'Calendar', component: Calendar },

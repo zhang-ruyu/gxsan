@@ -15,7 +15,7 @@ func NewGridStrategy() *GridStrategy {
 	return &GridStrategy{}
 }
 
-// Analyze 分析网格信号
+// Analyze 分析网格信号（基于持仓/监控配置中的网格档位）
 func (s *GridStrategy) Analyze(stock *model.Stock, config *model.Config) *model.GridSignal {
 	// 获取股票配置
 	stockConfig := config.FindStock(stock.Code)
@@ -26,17 +26,21 @@ func (s *GridStrategy) Analyze(stock *model.Stock, config *model.Config) *model.
 	// 计算股息率
 	yield := data.CalculateDividendYield(stock.Price, stock.DividendPerShare)
 
+	return s.AnalyzeYield(yield, stockConfig.GridStrategy.BuyGrids, stockConfig.GridStrategy.SellGrids)
+}
+
+// AnalyzeYield 给定当前股息率与一组买入/卖出网格，计算触发档位与建议动作。
+// 与 Analyze 同算法，但不依赖 config（持仓可直接用自身网格档位调用，无需伪造监控项）。
+func (s *GridStrategy) AnalyzeYield(yield float64, buyGrids [5]model.GridLevel, sellGrids [5]model.GridLevel) *model.GridSignal {
 	signal := &model.GridSignal{
-		Code:         stock.Code,
-		Name:         stock.Name,
 		CurrentYield: yield,
 	}
 
 	// 分析买入网格
-	signal.BuyLevel, signal.BuyAmount = s.analyzeBuyGrid(yield, stockConfig.GridStrategy.BuyGrids)
+	signal.BuyLevel, signal.BuyAmount = s.analyzeBuyGrid(yield, buyGrids)
 
 	// 分析卖出网格
-	signal.SellLevel, signal.SellPercent = s.analyzeSellGrid(yield, stockConfig.GridStrategy.SellGrids)
+	signal.SellLevel, signal.SellPercent = s.analyzeSellGrid(yield, sellGrids)
 
 	// 判断操作
 	signal.Action, signal.Reason = s.determineAction(signal)

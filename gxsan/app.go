@@ -304,7 +304,7 @@ func (a *App) GetConfigFile() string {
 	return filepath.Join(homeDir, ".gxsan", "config.yaml")
 }
 
-// GetGridStrategy 获取网格策略
+// GetGridStrategy 获取监控列表股票的网格策略
 func (a *App) GetGridStrategy(code string) (string, error) {
 	sc := a.configMgr.GetStockConfig(code)
 	if sc == nil {
@@ -314,6 +314,104 @@ func (a *App) GetGridStrategy(code string) (string, error) {
 		BuyGrids:  sc.GridStrategy.BuyGrids[:],
 		SellGrids: sc.GridStrategy.SellGrids[:],
 	}), nil
+}
+
+// ========== 持仓网格策略（GUI 可编辑） ==========
+
+// GetHoldingGrid 获取某持仓的网格策略 + 当前实时股息率触发的档位与建议动作。
+// 持仓的网格档位是用户自定义的（股息率阈值→加仓/减仓金额），与监控列表共用同一套算法。
+func (a *App) GetHoldingGrid(code string) (string, error) {
+	var holding *model.Holding
+	for i := range a.configMgr.Config.Portfolio {
+		if a.configMgr.Config.Portfolio[i].Code == code {
+			holding = &a.configMgr.Config.Portfolio[i]
+			break
+		}
+	}
+	if holding == nil {
+		return "{}", fmt.Errorf("持仓 %s 不存在", code)
+	}
+
+	stocks := a.fetchStocksForCodes([]string{code})
+	yield := 0.0
+	if s, ok := stocks[code]; ok {
+		yield = s.DividendYield
+	}
+
+	gs := strategy.NewGridStrategy()
+	sig := gs.AnalyzeYield(yield, holding.GridStrategy.BuyGrids, holding.GridStrategy.SellGrids)
+
+	// 未配置任何网格（买卖档位股息率全为 0）→ 提示先设置，而不是给出无意义的「加仓 0 元」
+	configured := false
+	for _, g := range holding.GridStrategy.BuyGrids {
+		if g.Yield > 0 {
+			configured = true
+			break
+		}
+	}
+	if !configured {
+		for _, g := range holding.GridStrategy.SellGrids {
+			if g.Yield > 0 {
+				configured = true
+				break
+			}
+		}
+	}
+	if !configured {
+		out := map[string]interface{}{
+			"code":          holding.Code,
+			"name":          holding.Name,
+			"current_yield": yield,
+			"buy_grids":     holding.GridStrategy.BuyGrids,
+			"sell_grids":    holding.GridStrategy.SellGrids,
+			"buy_level":     0,
+			"buy_amount":    0,
+			"sell_level":    0,
+			"sell_percent":  0,
+			"action":        "NONE",
+			"reason":        "尚未设置网格策略；填写股息率档位并保存后，这里会显示「该加仓/减仓多少」的实时建议",
+		}
+		return toJSON(out), nil
+	}
+
+	out := map[string]interface{}{
+		"code":          holding.Code,
+		"name":          holding.Name,
+		"current_yield": yield,
+		"buy_grids":     holding.GridStrategy.BuyGrids,
+		"sell_grids":    holding.GridStrategy.SellGrids,
+		"buy_level":     sig.BuyLevel,
+		"buy_amount":    sig.BuyAmount,
+		"sell_level":    sig.SellLevel,
+		"sell_percent":  sig.SellPercent,
+		"action":        sig.Action,
+		"reason":        sig.Reason,
+	}
+	return toJSON(out), nil
+}
+
+// SaveHoldingGrid 保存某持仓的网格策略（5 档买入 + 5 档卖出）。
+// buyGrids/sellGrids 为 JSON 数组：[{yield:5.5, amount:5000}, ...]
+func (a *App) SaveHoldingGrid(code string, buyGridsJSON string, sellGridsJSON string) error {
+	var buyGrids [5]model.GridLevel
+	var sellGrids [5]model.GridLevel
+	if err := json.Unmarshal([]byte(buyGridsJSON), &buyGrids); err != nil {
+		return fmt.Errorf("买入网格格式错误: %w", err)
+	}
+	if err := json.Unmarshal([]byte(sellGridsJSON), &sellGrids); err != nil {
+		return fmt.Errorf("卖出网格格式错误: %w", err)
+	}
+
+	for i := range a.configMgr.Config.Portfolio {
+		if a.configMgr.Config.Portfolio[i].Code == code {
+			a.configMgr.Config.Portfolio[i].GridStrategy = model.GridStrategy{
+				BuyGrids:  buyGrids,
+				SellGrids: sellGrids,
+			}
+			return a.configMgr.Save()
+		}
+	}
+	return fmt.Errorf("持仓 %s 不存在", code)
 }
 
 // ========== 跟踪推荐 ==========

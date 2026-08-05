@@ -54,6 +54,14 @@ export function GetGridStrategy(arg1) {
   return window['go']['main']['App']['GetGridStrategy'](arg1);
 }
 
+export function GetHoldingGrid(arg1) {
+  return window['go']['main']['App']['GetHoldingGrid'](arg1);
+}
+
+export function SaveHoldingGrid(arg1, arg2, arg3) {
+  return window['go']['main']['App']['SaveHoldingGrid'](arg1, arg2, arg3);
+}
+
 export function GetPortfolio() {
   return window['go']['main']['App']['GetPortfolio']();
 }
