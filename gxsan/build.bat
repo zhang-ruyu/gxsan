@@ -6,13 +6,19 @@ setlocal
 
 cd /d %~dp0
 
-echo [1/3] 生成图标资源（go-winres 把 winres/appicon.png 嵌入 exe，解决任务栏图标糊/无图标）...
+echo [1/3] 生成图标资源（go-winres 把 winres/appicon.ico 嵌入 exe）...
+REM appicon.ico 含 16/20/24/32/40/48/64/128/256 共 9 个尺寸档位，
+REM 小尺寸用 BMP 编码、256 用 PNG 编码——这是 Windows 任务栏/标题栏最兼容的格式。
+REM 只放单张 256 图会导致任务栏强行缩放，出现图标糊或不显示。
 go-winres make --in winres/winres.json --arch amd64 --out appicon
 if errorlevel 1 (
     echo 警告：go-winres 未安装或失败，将不嵌入图标（exe 用默认图标）。
+    echo 安装：go install github.com/tc-hib/go-winres@latest
 )
 
-echo [2/3] 构建前端（npm run build）...
+echo [2/3] 构建前端（先跑 check-router 静态校验，再 vite build）...
+REM check-router 拦截「路由组件被引用但没 import」——这类错误 vite 不报警告，
+REM 但运行时会 ReferenceError 导致整个界面白屏。
 cd frontend
 call npm run build
 if errorlevel 1 (
@@ -30,6 +36,6 @@ if errorlevel 1 (
     exit /b 1
 )
 
-echo 构建完成，产物位于：gxsan\gxsan\gxsan.exe
+echo 构建完成，产物位于：%~dp0gxsan.exe
 echo 提示：标准分发只需这一个 gxsan.exe；目标机若缺 WebView2 见 README 的「分发与 WebView2」。
 endlocal

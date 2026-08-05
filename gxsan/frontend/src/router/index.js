@@ -6,6 +6,7 @@ import Calendar from '../views/Calendar.vue'
 import Settings from '../views/Settings.vue'
 import Tracking from '../views/Tracking.vue'
 import DividendSummary from '../views/DividendSummary.vue'
+import Grid from '../views/Grid.vue'
 
 const routes = [
   { path: '/', name: 'Home', component: Home },
