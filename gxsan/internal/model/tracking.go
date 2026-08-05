@@ -24,6 +24,7 @@ type TrackingCategory struct {
 // TrackingCategories 跟踪推荐股票池（源自 A 股分红投资 skill）
 // 数据来源：微信公众号「分红养老之路」（森哥）实战周记
 // 最后更新：2026年7月25日
+// 同步要求：修改此处数据时须同步更新 skill 的 data/DATA.md，避免两处数据分叉
 var TrackingCategories = []TrackingCategory{
 	{
 		Name: "银行/保险",

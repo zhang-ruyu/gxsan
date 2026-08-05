@@ -20,6 +20,12 @@
     </div>
 
     <div v-else>
+      <!-- 数据截止提示 -->
+      <div class="data-notice">
+        <span class="notice-icon"> </span>
+        <span>静态数据（股息率/逻辑/风险/建议）截止 <strong>2026年7月25日</strong>，源自 skill 推荐池。实时行情来自东方财富，交易时段每 30 秒自动刷新。</span>
+      </div>
+
       <!-- 汇总统计 -->
       <div class="summary-stats">
         <div class="stat-card">
@@ -427,6 +433,23 @@ export default {
 
 .info-value {
   flex: 1;
+}
+
+.data-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  margin-bottom: 16px;
+  background: #fffbeb;
+  border: 1px solid #fed7aa;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #92400e;
+}
+
+.notice-icon {
+  font-size: 16px;
 }
 
 .footer-note {

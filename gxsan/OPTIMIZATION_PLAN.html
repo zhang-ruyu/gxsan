@@ -3,233 +3,158 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>GxSan 优化方案：从「看数据」到「给建议」</title>
+<title>GxSan 优化方案</title>
 <style>
-  :root {
-    --bg: #ffffff;
-    --text: #1f2933;
-    --text-muted: #6b7280;
-    --border: #e5e7eb;
-    --accent: #4f46e5;
-    --accent-bg: #eef2ff;
-    --success: #059669;
-    --success-bg: #ecfdf5;
-    --warn: #d97706;
-    --warn-bg: #fffbeb;
-    --code-bg: #f3f4f6;
-  }
-  * { box-sizing: border-box; }
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    line-height: 1.7;
-    margin: 0;
-    padding: 40px 20px;
-  }
-  .wrap { max-width: 880px; margin: 0 auto; }
-  h1 { font-size: 28px; border-bottom: 3px solid var(--accent); padding-bottom: 12px; }
-  h2 { font-size: 21px; margin-top: 40px; color: var(--accent); }
-  h3 { font-size: 17px; margin-top: 26px; }
-  p, li { font-size: 15px; color: var(--text); }
-  code {
-    background: var(--code-bg);
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-family: "SFMono-Regular", Consolas, monospace;
-    font-size: 13px;
-  }
-  blockquote {
-    border-left: 4px solid var(--accent);
-    background: var(--accent-bg);
-    margin: 16px 0;
-    padding: 12px 18px;
-    border-radius: 0 8px 8px 0;
-    color: var(--text);
-  }
-  blockquote p { margin: 4px 0; }
-  table {
-    border-collapse: collapse;
-    width: 100%;
-    margin: 16px 0;
-    font-size: 14px;
-  }
-  th, td { border: 1px solid var(--border); padding: 9px 12px; text-align: left; }
-  th { background: var(--accent-bg); color: var(--accent); font-weight: 600; }
-  tr:nth-child(even) td { background: #fafafa; }
-  .card {
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 18px 22px;
-    margin: 14px 0;
-    background: #fff;
-  }
-  .phase { border-left: 5px solid var(--accent); }
-  .tag {
-    display: inline-block;
-    font-size: 12px;
-    padding: 2px 10px;
-    border-radius: 12px;
-    background: var(--accent-bg);
-    color: var(--accent);
-    margin-right: 6px;
-  }
-  .star { color: var(--warn); letter-spacing: 1px; }
-  .warn-box {
-    border-left: 4px solid var(--warn);
-    background: var(--warn-bg);
-    padding: 10px 16px;
-    border-radius: 0 8px 8px 0;
-    margin: 12px 0;
-  }
-  ol li, ul li { margin: 4px 0; }
-  .muted { color: var(--text-muted); }
-  .footer { margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--border); color: var(--text-muted); font-size: 13px; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 900px; margin: 0 auto; padding: 40px 20px; line-height: 1.7; color: #24292f; }
+h1 { border-bottom: 2px solid #d0d7de; padding-bottom: 8px; }
+h2 { border-bottom: 1px solid #d0d7de; padding-bottom: 6px; margin-top: 32px; }
+table { border-collapse: collapse; width: 100%; margin: 16px 0; }
+th, td { border: 1px solid #d0d7de; padding: 8px 12px; text-align: left; }
+th { background: #f6f8fa; font-weight: 600; }
+tr:nth-child(even) { background: #f6f8fa; }
+pre { background: #f6f8fa; padding: 16px; border-radius: 8px; overflow-x: auto; }
+code { font-family: 'SF Mono', Consolas, monospace; font-size: 0.9em; }
+p code, li code { background: #eff1f3; padding: 2px 6px; border-radius: 4px; }
+blockquote { border-left: 4px solid #d0d7de; padding: 4px 16px; color: #57606a; margin: 16px 0; }
+li { margin: 4px 0; }
 </style>
 </head>
 <body>
-<div class="wrap">
-
 <h1>GxSan 优化方案：从「看数据」到「给建议」</h1>
-<p class="muted">版本：2026-08-04 初稿 ｜ 触发：用户普通用户视角 Top10 需求 + 3 条吐槽 + 总结论</p>
-<p class="muted">关联：多账户体系已于本日彻底删除，本方案建立在其后的"单一持仓 + 建议引擎"架构之上。</p>
-
+<blockquote>版本：2026-08-05 更新（标记阶段一已完成 + 架构变更同步）</blockquote>
+<blockquote>触发：用户普通用户视角 Top10 需求 + 3 条吐槽 + 总结论</blockquote>
+<p>---</p>
 <h2>0. 背景与核心论断</h2>
-<p><b>🥇 Top5（最想要）</b></p>
-<ol>
-  <li><b>Dashboard 总览</b> —— 一眼看清"我的退休金进度到哪了"</li>
-  <li><b>行动提示</b> —— 明确告诉我"现在该买 / 卖 / 等"，别只给数据</li>
-  <li><b>分红到账记录</b> —— 真实到账的历史，而不只是"计划分红"</li>
-  <li><b>持仓成本一键修正</b> —— 分红除权后成本自动下调（或一键手动）</li>
-  <li><b>导出</b> —— 数据能导出来（CSV / Excel）</li>
-</ol>
-<p><b>🥈 Top5（其次）</b></p>
-<ol>
-  <li>股价走势图（历史价格 + 估值带）</li>
-  <li>回测（策略历史表现）</li>
-  <li>多设备同步（云同步 config）</li>
-  <li>股利日历提醒（哪天除权、哪天到账，提前提醒）</li>
-  <li>暗色模式</li>
-</ol>
-<p><b>🤔 3 条吐槽</b></p>
-<ul>
-  <li>数据太散，找不到重点</li>
-  <li>术语太多，看不懂</li>
-  <li>没有"下一步该干嘛"</li>
+<p>用户原始诉求（普通用户视角）：</p>
+<p><strong> Top5（最想要）</strong></p>
+<p>1. <strong>Dashboard 总览</strong> —— 一眼看清&quot;我的退休金进度到哪了&quot;</p>
+<p>2. <strong>行动提示</strong> —— 明确告诉我&quot;现在该买 / 卖 / 等&quot;，别只给数据</p>
+<p>3. <strong>分红到账记录</strong> —— 真实到账的历史，而不只是&quot;计划分红&quot;</p>
+<p>4. <strong>持仓成本一键修正</strong> —— 分红除权后成本自动下调（或一键手动）</p>
+<p>5. <strong>导出</strong> —— 数据能导出来（CSV / Excel）</p>
+<p><strong> Top5（其次）</strong></p>
+<p>6. 股价走势图（历史价格 + 估值带）</p>
+<p>7. 回测（策略历史表现）</p>
+<p>8. 多设备同步（云同步 config）</p>
+<p>9. 股利日历提醒（哪天除权、哪天到账，提前提醒）</p>
+<p>10. 暗色模式</p>
+<p><strong> 3 条吐槽</strong></p>
+<li>数据太散，找不到重点</li>
+<li>术语太多，看不懂</li>
+<li>没有"下一步该干嘛"</li>
 </ul>
-<blockquote>
-  <p><b>💡 总结论（用户原话）</b></p>
-  <p>从"看数据"到"给建议"，是这个工具最大的体验跃迁空间。</p>
-</blockquote>
-<p><b>当前 GxSan 的能力边界</b></p>
-<ul>
-  <li><span class="tag">能</span>单股估值/信号、持仓市值盈亏、YoC、按自然年分红汇总、养老倒推本金、房产→股权对比</li>
-  <li><span class="tag">不能</span>主动告诉用户"现在该买/卖/等多少"、记录真实分红到账、跨设备同步、可视化走势</li>
-</ul>
-
+<p><strong> 总结论（用户原话）</strong></p>
+<blockquote>从&quot;看数据&quot;到&quot;给建议&quot;，是这个工具最大的体验跃迁空间。</blockquote>
+<p>---</p>
 <h2>1. 产品定位重定</h2>
-<table>
-  <tr><th></th><th>旧定位</th><th>新定位</th></tr>
-  <tr><td>一句话</td><td>分红数据浏览器</td><td>个人分红养老操盘助手</td></tr>
-  <tr><td>用户每次打开得到</td><td>一堆指标</td><td>一个明确的"下一步动作"</td></tr>
-  <tr><td>核心问题</td><td>我持有啥、赚多少</td><td>我现在该干嘛、离目标还差多少</td></tr>
-</table>
-<blockquote><p>所有新功能都应服务于"降低决策门槛"：把已有的信号/估值/网格，<b>翻译成人话指令</b>。</p></blockquote>
-
+<table><thead><tr><th></th><th>旧定位</th><th>新定位</th></tr></thead><tbody>
+<tr><td>一句话</td><td>分红数据浏览器</td><td>个人分红养老操盘助手</td></tr>
+<tr><td>用户每次打开得到</td><td>一堆指标</td><td>一个明确的"下一步动作"</td></tr>
+<tr><td>核心问题</td><td>我持有啥、赚多少</td><td>我现在该干嘛、离目标还差多少</td></tr>
+</tbody></table>
+<blockquote>所有新功能都应服务于&quot;降低决策门槛&quot;：把已有的信号/估值/网格，**翻译成人话指令**。</blockquote>
+<p>---</p>
 <h2>2. 分阶段路线图</h2>
-
-<div class="card phase">
-<h3>阶段一（建议优先，约 1–2 周）：建议引擎 MVP</h3>
-<p class="muted">目标：把已有的 <code>strategy.DividendStrategy</code> + 网格，变成用户能直接照做的指令。复用度最高、成本最低、价值最大。</p>
-<p><b>1.1 Dashboard 总览页</b>（取代当前 Home 的堆砌）</p>
-<ul>
-  <li>退休金进度条：当前年化分红 ÷ 目标月分红×12 → 进度 %</li>
-  <li>三张核心卡：组合股息率 / 年化分红 / 距离目标还差多少本金</li>
-  <li>今日/本周"待办动作"列表（数据来自 1.2）</li>
+<h3>阶段一（建议引擎 MVP） — ✅ 已完成（2026-08-04，提交 343ac71 + 2bc6275）</h3>
+<blockquote>目标：把已有的 `strategy.DividendStrategy` + 网格，变成用户能直接照做的指令。复用度最高、成本最低、价值最大。</blockquote>
+<p><strong>1.1 Dashboard 总览页 ✅</strong></p>
+<li>退休金进度条：当前年化分红 ÷ 目标年分红×12 → 进度 %</li>
+<li>四张核心卡：总资产 / 年化分红 / 目标年分红 / 进度百分比</li>
+<li>行动提示汇总（BUY/HOLD/WATCH/SELL 计数）</li>
+<li>行动提示明细表（按优先级排序，含股息率/建议金额/数量/理由）</li>
+<li>底部"推荐关注"入口，链接到跟踪推荐页</li>
 </ul>
-<p><b>1.2 行动提示（Action Advisor）</b></p>
-<ul>
-  <li>对每只持仓输出 <code>买 / 卖 / 持有</code> + 建议金额或股数 + 一句话理由</li>
-  <li>在 Dashboard 与 Detail 顶部展示"建议卡"</li>
-  <li>复用现有 <code>StockDetail</code> 的 <code>signal / reason / cheap_price / fair_price / expensive_price</code>，新增 <code>ActionSuggestion{ Action, SuggestAmount, SuggestShares, Reason }</code></li>
-  <li>金额建议来源：网格档位 <code>g.Amount / g.Yield</code> 已具备，无需新数据源</li>
+<p><strong>1.2 行动提示（Action Advisor） ✅</strong></p>
+<li>对每只持仓输出 <code>买 / 卖 / 持有</code> + 建议金额或股数 + 一句话理由</li>
+<li>BUY 估算股数 = 金额÷现价，向下取整到 100 股（A 股整手）</li>
+<li>SELL 估算金额 = 卖出股数×现价</li>
+<li>在 Dashboard 与 Portfolio 两个页面展示</li>
+<li>数据契约：<code>model.ActionAdvice{ Action, SuggestedBuyAmount, SuggestedBuyShares, SuggestedSellShares, SuggestedSellAmount, Reason, Constraint, Priority, CostCorrectable }</code></li>
 </ul>
-<p><b>1.3 持仓成本一键修正</b></p>
-<ul>
-  <li>分红除权后成本随之下调；提供"按最新分红记录自动下调 AvgCost"按钮</li>
-  <li>后端：<code>config.Manager.AdjustCostByDividend(code)</code>；前端 Portfolio 编辑弹窗增加入口</li>
+<p><strong>1.3 持仓成本一键修正 ✅</strong></p>
+<li><code>CorrectHoldingCost(code, totalCost)</code>：以真实投入总额推导精确每股成本（总价÷股数）</li>
+<li>首次修正时保存 <code>OriginalCost</code> 快照（原始买入成本，防止分红除权后看不到当初买入价）</li>
+<li>Portfolio 编辑弹窗增加"真实投入总额"输入框 + "原始买入成本"只读展示</li>
+<li>成本显示精度从 2 位小数放开到 4 位（<code>fmtCost()</code> 最多 4 位去尾零）</li>
 </ul>
-<div class="warn-box">⚠️ 必须保留"原始买入成本"快照，避免把填权收益误算成亏损。</div>
-</div>
-
-<div class="card phase">
-<h3>阶段二（现金流真实化，约 2–3 周）</h3>
-<p><b>2.1 分红到账记录（真实历史）</b></p>
-<ul>
-  <li>现有 <code>GetDividendHistory</code> 是"每股分红预案"，不是"我实际到账"</li>
-  <li>新增：按 <code>持仓股数 × 每股 × 到账日</code> 计算真实到账金额，落盘到 <code>data/</code> 或 config 的 <code>received_dividends</code></li>
-  <li>视图：时间线/列表 + 累计已收分红 + 年化实现率（实际 ÷ 计划）</li>
+<p>---</p>
+<h3>阶段二（现金流真实化） — 待启动</h3>
+<p><strong>2.1 分红到账记录（真实历史）</strong></p>
+<li>现有 <code>GetDividendHistory</code> 是"每股分红预案"，不是"我实际到账"</li>
+<li>需新增：按 <code>持仓股数 × 每股 × 到账日</code> 计算真实到账金额，落盘到 <code>data/</code> 或 config 的 <code>received_dividends</code></li>
+<li>视图：时间线/列表 + 累计已收分红 + 年化实现率（实际 ÷ 计划）</li>
 </ul>
-<p><b>2.2 股利日历 + 提醒</b></p>
-<ul>
-  <li>抓取除权除息日、股权登记日、派息日（EastMoney 接口可扩展）</li>
-  <li>日历视图 + 提前 N 天本地提醒（系统通知 / 桌面托盘，Wails 支持）</li>
+<p><strong>2.2 股利日历 + 提醒</strong></p>
+<li>抓取除权除息日、股权登记日、派息日（EastMoney 相关接口可扩展）</li>
+<li>日历视图 + 提前 N 天本地提醒（系统通知 / 桌面托盘，Wails 支持）</li>
+<li>依赖：2.1 的到账数据结构</li>
 </ul>
-</div>
-
-<div class="card phase">
-<h3>阶段三（可读性与可携带，约 1–2 周）</h3>
-<p><b>3.1 导出 CSV / Excel</b> —— 持仓、分红汇总、到账记录、养老测算均可导出；后端 <code>GetExport(kind)</code> 返回 CSV，前端用系统文件对话框下载。</p>
-<p><b>3.2 暗色模式</b> —— 前端已用 CSS 变量，加主题切换 + 持久化 <code>localStorage</code>；Wails 端读系统主题。</p>
-<p><b>3.3 术语降噪</b> —— <code>YoC</code>→"成本股息率（已回本比例）"、估值带→"便宜/合理/贵"；给每个指标加 hover 解释。</p>
-</div>
-
-<div class="card phase">
-<h3>阶段四（深度与多端，约 3–4 周，按需）</h3>
-<p><b>4.1 股价走势图 + 估值带</b> —— 引入 ECharts/Chart.js，叠加 cheap/fair/expensive 三条线 + 历史价格 + 分红标记（需补历史 K 线数据源）。</p>
-<p><b>4.2 回测</b> —— 用历史分红+价格模拟"如果 X 年前开始定投，现在收益"，复用 <code>plan/compound</code>。</p>
-<p><b>4.3 多设备同步</b> —— <code>config.yaml</code> 同步到云（GitHub Gist / OneDrive），默认关闭、仅手动。</p>
-<div class="warn-box">⚠️ 含持仓成本属敏感数据，需加密或仅放用户私有仓库，绝不自动上传明文。</div>
-</div>
-
-<h2>3. 优先级与依赖</h2>
-<table>
-  <tr><th>功能</th><th>阶段</th><th>用户价值</th><th>技术难度</th><th>依赖</th></tr>
-  <tr><td>行动提示 (1.2)</td><td>一</td><td><span class="star">★★★★★</span></td><td>低</td><td>复用现有信号/网格</td></tr>
-  <tr><td>Dashboard (1.1)</td><td>一</td><td><span class="star">★★★★★</span></td><td>低</td><td>1.2</td></tr>
-  <tr><td>成本一键修正 (1.3)</td><td>一</td><td><span class="star">★★★★</span></td><td>中</td><td>现有分红记录</td></tr>
-  <tr><td>分红到账记录 (2.1)</td><td>二</td><td><span class="star">★★★★</span></td><td>中</td><td>新增落盘结构</td></tr>
-  <tr><td>股利日历提醒 (2.2)</td><td>二</td><td><span class="star">★★★★</span></td><td>中</td><td>2.1 + 接口扩展</td></tr>
-  <tr><td>导出 (3.1)</td><td>三</td><td><span class="star">★★★</span></td><td>低</td><td>无</td></tr>
-  <tr><td>暗色模式 (3.2)</td><td>三</td><td><span class="star">★★</span></td><td>低</td><td>已有 CSS 变量</td></tr>
-  <tr><td>术语降噪 (3.3)</td><td>三</td><td><span class="star">★★★</span></td><td>低</td><td>无</td></tr>
-  <tr><td>走势图 (4.1)</td><td>四</td><td><span class="star">★★★</span></td><td>高</td><td>历史 K 线数据源</td></tr>
-  <tr><td>回测 (4.2)</td><td>四</td><td><span class="star">★★</span></td><td>高</td><td>4.1 历史数据</td></tr>
-  <tr><td>多设备同步 (4.3)</td><td>四</td><td><span class="star">★★</span></td><td>中</td><td>隐私方案</td></tr>
-</table>
-
-<h2>4. 风险与取舍</h2>
-<ul>
-  <li><b>走势图 / 回测</b> 需要历史行情源，当前 fetcher 不强；先确认数据源成本再动手，避免阶段四阻塞前三个阶段。</li>
-  <li><b>多设备同步</b> 涉及隐私，默认关闭、仅手动触发；绝不自动上传含持仓成本的明文文件。</li>
-  <li><b>行动建议要"可解释"</b>，避免黑盒：每条建议必须带理由与数据出处（便宜价/网格档位），否则用户不会信。</li>
-  <li><b>术语降噪不等于删功能</b>：专业指标保留，只是给"人话"别名 + 解释，满足普通用户又不赶走进阶用户。</li>
+<p>---</p>
+<h3>阶段三（可读性与可携带）</h3>
+<p><strong>3.1 导出 CSV / Excel</strong></p>
+<li>持仓、分红汇总、到账记录均可导出</li>
+<li>后端新增 <code>GetExport(kind)</code> 返回 CSV 字符串；前端下载（Wails 用系统文件对话框）</li>
 </ul>
-
-<h2>5. 建议落地顺序</h2>
-<div class="card">
-<pre style="font-size:14px;line-height:1.9;margin:0;"><code>先做：1.2 行动提示 + 1.1 Dashboard   （最大价值、最低成本，复用现有信号）
-接着：1.3 成本一键修正
-然后：2.1 分红到账记录 → 2.2 股利日历提醒
-再后：3.1 导出 → 3.3 术语降噪 → 3.2 暗色模式
-最后（按需）：4.1 走势图 → 4.2 回测 → 4.3 多设备同步</code></pre>
-</div>
-<blockquote><p>一句话：<b>先把"该买该卖"说清楚（阶段一），再把"赚到没"记清楚（阶段二），最后才做花哨的可视化与多端（阶段三/四）。</b></p></blockquote>
-
-<div class="footer">
-  GxSan 优化方案 · 2026-08-04 · 由 WorkBuddy 生成（普通用户视角驱动）
-</div>
-
-</div>
+<p><strong>3.2 暗色模式</strong></p>
+<li>前端已用 CSS 变量（<code>--text-muted</code> 等），加主题切换 + 持久化到 <code>localStorage</code></li>
+<li>实现成本很低，对长时间看盘用户感知度高</li>
+</ul>
+<p><strong>3.3 术语降噪 ✅ 已完成</strong></p>
+<li>全站文案审查：<code>YoC</code> → "成本股息率"、估值带 → "低估/合理/高估阈值"、信号 → "建议买入/卖出/持有/关注中"</li>
+<li>信号键名（BUY/SELL/HOLD/WATCH）仅作内部标识符，经 signal.js 翻译后显示中文</li>
+<li>前端用户可见文案已全部中文，无英文缩写残留</li>
+</ul>
+<p>---</p>
+<h3>阶段四（深度与多端，按需）</h3>
+<p><strong>4.1 股价走势图 + 估值带</strong></p>
+<li>前端引入轻量图表（ECharts / Chart.js），叠加 cheap/fair/expensive 三条线 + 历史价格 + 分红标记</li>
+<li>依赖：行情接口需补历史 K 线（当前 <code>EnrichStock</code> 只有即时价 + PE/PB）</li>
+</ul>
+<p><strong>4.2 回测</strong></p>
+<li>对选定股票/策略，用历史分红 + 价格模拟"如果 X 年前开始定投，现在收益"</li>
+<li>复用 <code>plan/compound</code> + 历史数据</li>
+</ul>
+<p><strong>4.3 多设备同步</strong></p>
+<li><code>config.yaml</code> 同步到云（GitHub Gist / 自建 / OneDrive）</li>
+<li>含持仓成本属敏感数据，需加密或仅放用户私有仓库</li>
+<li>最小可行：导出/导入 + 手动同步；进阶：自动 push 到私有 gist</li>
+</ul>
+<p>---</p>
+<h2>3. 架构变更记录（2026-08-05）</h2>
+<table><thead><tr><th>变更</th><th>说明</th><th>影响</th></tr></thead><tbody>
+<tr><td>合并双层目录为单一 module</td><td>原 `gxsan/gxsan/`（GUI 子模块）已删除，GUI 代码提到根目录</td><td>`main.go` 双入口：CLI 子命令 / Wails GUI</td></tr>
+<tr><td>删除 cmd/ 目录</td><td>CLI 子命令内置到 `main.go`</td><td>不再需要独立 cmd 入口</td></tr>
+<tr><td>删除养老测算 GUI 页面</td><td>Dashboard 退休金进度条已覆盖核心需求</td><td>CLI 保留 pension 子命令，GUI 移除 /pension 路由和 GetPension 方法</td></tr>
+<tr><td>删除资产转换 GUI 页面</td><td>功能使用频率低</td><td>CLI 保留 compare 子命令，GUI 移除 /conversion 路由和 CompareStocks/RealEstateToEquity 方法</td></tr>
+<tr><td>新增跟踪推荐页面</td><td>31 只推荐标的按 7 大分类展示</td><td>新增 /tracking 路由、Tracking.vue、tracking.go、GetTrackingStocks() 方法</td></tr>
+<tr><td>缓存 TTL 市场感知</td><td>交易时段 3 分钟 / 非交易 8 小时（原固定 24h）</td><td>修复现价不准问题</td></tr>
+<tr><td>Wails build tag 修复</td><td>必须加 `-tags production`</td><td>修复双击 exe 弹错误窗的问题</td></tr>
+</tbody></table>
+<p>---</p>
+<h2>4. 优先级与依赖（更新版）</h2>
+<table><thead><tr><th>功能</th><th>阶段</th><th>状态</th><th>技术难度</th><th>依赖</th></tr></thead><tbody>
+<tr><td>行动提示 (1.2)</td><td>一</td><td>✅ 完成</td><td>低</td><td>复用现有信号/网格</td></tr>
+<tr><td>Dashboard (1.1)</td><td>一</td><td>✅ 完成</td><td>低</td><td>1.2</td></tr>
+<tr><td>成本一键修正 (1.3)</td><td>一</td><td>✅ 完成</td><td>中</td><td>现有分红记录</td></tr>
+<tr><td>术语降噪 (3.3)</td><td>三</td><td>✅ 完成</td><td>低</td><td>无</td></tr>
+<tr><td>跟踪推荐页</td><td>—</td><td>✅ 完成</td><td>低</td><td>skill 推荐池</td></tr>
+<tr><td>缓存 TTL 修复</td><td>—</td><td>✅ 完成</td><td>低</td><td>无</td></tr>
+<tr><td>分红到账记录 (2.1)</td><td>二</td><td>待启动</td><td>中</td><td>新增落盘结构</td></tr>
+<tr><td>股利日历提醒 (2.2)</td><td>二</td><td>待启动</td><td>中</td><td>2.1 + 行情接口扩展</td></tr>
+<tr><td>导出 (3.1)</td><td>三</td><td>待启动</td><td>低</td><td>无</td></tr>
+<tr><td>暗色模式 (3.2)</td><td>三</td><td>待启动</td><td>低</td><td>已有 CSS 变量</td></tr>
+<tr><td>走势图 (4.1)</td><td>四</td><td>待启动</td><td>高</td><td>历史 K 线数据源</td></tr>
+<tr><td>回测 (4.2)</td><td>四</td><td>待启动</td><td>高</td><td>4.1 历史数据</td></tr>
+<tr><td>多设备同步 (4.3)</td><td>四</td><td>待启动</td><td>中</td><td>隐私方案</td></tr>
+</tbody></table>
+<p>---</p>
+<h2>5. 建议落地顺序（更新版）</h2>
+<pre><code>
+已完成：1.2 行动提示 + 1.1 Dashboard + 1.3 成本修正 + 3.3 术语降噪 + 跟踪推荐 + 缓存修复
+下一步：2.1 分红到账记录 → 2.2 股利日历提醒
+再后：3.1 导出 → 3.2 暗色模式
+最后（按需）：4.1 走势图 → 4.2 回测 → 4.3 多设备同步
+</code></pre>
+<blockquote>一句话：**&quot;该买该卖&quot;已说清楚（阶段一），下一步把&quot;赚到没&quot;记清楚（阶段二），最后才做花哨的可视化与多端（阶段三/四）。**</blockquote>
 </body>
 </html>

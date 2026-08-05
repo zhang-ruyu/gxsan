@@ -1,178 +1,205 @@
-<!DOCTYPE html><html lang="zh"><head><meta charset="utf-8"><style>body{font-family:sans-serif;max-width:900px;margin:40px auto;padding:0 20px;line-height:1.6;color:#222}h1{border-bottom:2px solid #eee;padding-bottom:8px}h2{border-bottom:1px solid #eee;padding-bottom:4px;margin-top:32px}code{background:#f4f4f4;padding:2px 5px;border-radius:3px;font-family:Consolas,monospace}pre{background:#f8f8f8;padding:14px;border-radius:6px;overflow:auto}pre code{background:none;padding:0}table{border-collapse:collapse;width:100%;margin:16px 0}th,td{border:1px solid #ddd;padding:8px 10px;text-align:left}th{background:#f4f4f4}ul,ol{padding-left:24px}hr{border:none;border-top:1px solid #eee;margin:24px 0}blockquote{background:#f9f9f9;border-left:4px solid #ccc;margin:16px 0;padding:8px 16px;color:#555}</style></head><body><h1>GxSan 架构文档（ARCHITECTURE）</h1>
-<blockquote>
-<p>版本：步骤3（多页面 + 规划测算落地）后
-最近更新：2026-08-04（删除多账户体系，分红汇总改为仅按自然年；多页面/Dashboard 优化规划中）</p>
-</blockquote>
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GxSan 架构文档</title>
+<style>
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 900px; margin: 0 auto; padding: 40px 20px; line-height: 1.7; color: #24292f; }
+h1 { border-bottom: 2px solid #d0d7de; padding-bottom: 8px; }
+h2 { border-bottom: 1px solid #d0d7de; padding-bottom: 6px; margin-top: 32px; }
+table { border-collapse: collapse; width: 100%; margin: 16px 0; }
+th, td { border: 1px solid #d0d7de; padding: 8px 12px; text-align: left; }
+th { background: #f6f8fa; font-weight: 600; }
+tr:nth-child(even) { background: #f6f8fa; }
+pre { background: #f6f8fa; padding: 16px; border-radius: 8px; overflow-x: auto; }
+code { font-family: 'SF Mono', Consolas, monospace; font-size: 0.9em; }
+p code, li code { background: #eff1f3; padding: 2px 6px; border-radius: 4px; }
+blockquote { border-left: 4px solid #d0d7de; padding: 4px 16px; color: #57606a; margin: 16px 0; }
+li { margin: 4px 0; }
+</style>
+</head>
+<body>
+<h1>GxSan 架构文档（ARCHITECTURE）</h1>
+<blockquote>版本：2026-08-05（合并双层目录为单一 module，删除养老测算/资产转换 GUI 页面，新增跟踪推荐）</blockquote>
+<blockquote>最近更新：2026-08-05</blockquote>
 <h2>1. 总览</h2>
-<p>GxSan（股息三）是 A 股分红投资分析与决策辅助工具，落地技能 <code>a-share-dividend-investing</code> 的方法论。采用 <strong>双模块 + 单一业务真源</strong> 结构：</p>
-<ul>
-<li><strong>根模块</strong> <code>github.com/user/gxsan</code>（CLI）：<code>/c/gxsan</code></li>
-<li><strong>GUI 模块</strong> <code>github.com/user/gxsan/gui</code>（Wails 桌面端）：<code>/c/gxsan/gxsan</code></li>
+<p>GxSan（股息三）是 A 股分红投资分析与决策辅助工具，落地技能 <code>a-share-dividend-investing</code> 的方法论。采用 <strong>单一 module + 双入口</strong> 结构：</p>
+<li><strong>module</strong> <code>github.com/user/gxsan</code>（路径 <code>C:\soft\gxsan</code>）</li>
+<li><strong>双入口</strong> <code>main.go</code>：<code>os.Args[1]</code> 为 CLI 子命令（analyze/detail/pension/compare/yoc/config/version/help）时走命令行；否则启动 Wails GUI</li>
+<li>CLI 与 GUI 共享同一套 <code>internal/</code> 业务库，只是入口不同（命令行 vs Vue 前端）</li>
 </ul>
-<p>GUI 通过 <code>go.mod</code> 的 <code>replace github.com/user/gxsan =&gt; ../</code> 直接复用根模块的 <code>internal/</code> 业务库，<strong>不在 GUI 内维护重复的 internal 副本</strong>。CLI 与 GUI 共享同一套模型、抓取、测算逻辑，只是入口不同（命令行 vs Vue 前端）。</p>
 <h2>2. 目录结构</h2>
-<pre><code>gxsan/                         # 根模块（CLI）
-├── cmd/                       # 命令行入口
-├── config/                    # 配置加载/保存（yaml）
-├── data/                      # 行情抓取 + 缓存（EastMoneyFetcher, Cache, EnrichStock/EnrichStocks 并发批量）
+<pre><code>
+gxsan/                         # 单一 module（CLI + GUI）
+├── main.go                    # 双入口：CLI 子命令 / Wails GUI
+├── app.go                     # GUI 薄胶水层：Wails 绑定方法
+├── go.mod / go.sum            # 含 wails v2 依赖
+├── wails.json                 # Wails 配置
+├── build.bat                  # 一键构建脚本
+├── launch-portable.bat        # 便携启动（WebView2 便携包）
+├── build/
+│   ├── appicon.ico
+│   └── appicon.png
+├── winres/                    # Windows 资源文件
+├── frontend/                  # Vue3 + Vue Router + Vite
+│   ├── dist/                  # vite 构建产物（//go:embed all:frontend/dist）
+│   ├── wailsjs/go/main/App.js # 手工维护的前端绑定（wails bindgen 本机跑不了）
+│   └── src/
+│       ├── views/             # Home/Dashboard/Detail/Portfolio/DividendSummary/Tracking/Calendar/Settings
+│       ├── components/        # Sidebar/StockCard/SignalBadge
+│       ├── utils/             # signal.js / api.js / market.js
+│       └── router/index.js
 ├── internal/
-│   ├── model/                 # 领域模型：Stock/Holding/Config/Portfolio/View DTO
-│   ├── config/                # Config Manager（增删持仓/生命周期）
-│   ├── data/                  # （同上层 data，内部细分）
-│   ├── report/                # 报告生成：analyze/detail/calendar → 文本或 JSON DTO
+│   ├── model/                 # 领域模型：Stock/Holding/Config/Portfolio/View DTO/TrackingStock
+│   ├── config/                # Config Manager（增删持仓/生命周期/成本修正）
+│   ├── data/                  # 行情抓取 + 缓存（EastMoneyFetcher, Cache, EnrichStock/EnrichStocks）
+│   ├── report/                # 报告生成：analyze/detail/calendar
 │   ├── strategy/              # 单只股票买卖信号（DividendStrategy, cost_yield YoC）
-│   ├── plan/                  # 【步骤3新增】规划测算领域层
-│   ├── fund/                  # 资金/仓位监控（Monitor, BuildPool）
-│   └── cli/                   # 命令分发与各子命令实现
-└── gxsan/                     # GUI 模块（Wails）
-    ├── app.go                 # 薄胶水层：暴露 Wails 绑定方法
-    ├── main.go
-    ├── frontend/              # Vue3 + Vue Router + Vite
-    │   └── src/
-    │       ├── views/         # Home/Detail/Portfolio/Pension/Conversion/DividendSummary/Calendar/Settings
-    │       ├── components/     # Sidebar/StockCard/SignalBadge
-    │       ├── utils/          # signal(信号映射) / api(parseJSON) / market(交易时段+可见性)
-    │       ├── router/index.js
-    │       └── wailsjs/        # wails generate module 自动生成绑定
-    └── wails.json
+│   ├── plan/                  # 规划测算领域层（compound/pension/conversion）— CLI 仍调用，GUI 已移除对应页面
+│   ├── fund/                  # 资金/仓位监控（Monitor, BuildPool, GenerateHoldingRecommendations）
+│   └── cli/                   # 命令分发与各子命令实现（含 pension/compare，CLI 独占）
+├── config/                    # 配置加载/保存（yaml）
+└── data/                      # 行情抓取 + 缓存（与 internal/data 同层）
 </code></pre>
+<blockquote>**注意**：`cmd/` 目录已删除，CLI 子命令内置到 `main.go` 双入口。</blockquote>
 <h2>3. 分层职责</h2>
 <h3>model（领域模型，单一真源）</h3>
-<ul>
-<li><code>stock.go</code>：<code>Stock</code>（行情+分红）、<code>Holding</code>（持仓）、<code>StockConfig</code></li>
+<li><code>stock.go</code>：<code>Stock</code>（行情+分红）、<code>Holding</code>（持仓，含 TotalCost/OriginalCost）、<code>StockConfig</code></li>
 <li><code>account.go</code>：<code>LifecycleStageName</code>（1启动/2滚雪球/3自由/4收获）</li>
-<li><code>config.go</code>：<code>Config</code> 含 <code>LifecycleStage</code>（1启动/2滚雪球/3自由/4收获）</li>
+<li><code>config.go</code>：<code>Config</code> 含 <code>LifecycleStage</code>、<code>TargetAnnualDividend</code></li>
 <li><code>portfolio.go</code>：<code>InvestPool</code> 统一计算持仓市值/成本/盈亏</li>
-<li><code>view.go</code>：<code>StockDetail</code> JSON DTO（history / yield_on_cost / 估值区间 / 网格等），对齐 Detail.vue 字段；<code>PortfolioItem</code> 含 <code>YieldOnCost</code></li>
+<li><code>view.go</code>：<code>StockDetail</code> JSON DTO、<code>PortfolioItem</code>（含 YieldOnCost/OriginalCost）、<code>ActionAdvice</code>（含 SuggestedBuyShares/SuggestedSellAmount）、<code>DividendSummary</code></li>
+<li><code>tracking.go</code>：<code>TrackingStock</code>/<code>TrackingCategory</code> — 31 只推荐标的按 7 大分类硬编码，数据源自 skill 推荐池（截止 2026.7.25）</li>
 </ul>
 <h3>data（抓取与缓存）</h3>
-<ul>
-<li><code>enrich.go</code>：<code>EnrichStock</code>（单只，内部行情+分红两次 HTTP 并发）、<code>EnrichStocks(codes, forceRefresh)</code>（多只批量并发，信号量限流上限 8）</li>
-<li>命中 24h 缓存且 <code>forceRefresh=false</code> → 直接返回</li>
-<li><code>forceRefresh=true</code> → 跳过缓存读取（仍写回），用于「同一支股票随时多次刷新」</li>
+<li><code>enrich.go</code>：<code>EnrichStock</code>（单只）、<code>EnrichStocks(codes, forceRefresh)</code>（批量并发，信号量限流 8）</li>
+<li><code>cache.go</code>：<strong>市场感知动态 TTL</strong>（2026-08-04 修复）— 交易时段（工作日 9:25-15:00 北京时间）3 分钟，非交易时段 8 小时；<code>forceRefresh=true</code> 跳过缓存</li>
 </ul>
 <h3>report（报告/视图模型）</h3>
-<ul>
-<li><code>detail.go</code>：<code>GenerateStockDetail(code, forceRefresh) (*model.StockDetail, error)</code> + <code>FormatStockDetailText(...)</code> 供 CLI 文本输出</li>
-<li><code>report.go</code>：<code>GenerateAnalysisReport(forceRefresh bool)</code></li>
-<li>前后端契约：<strong>Detail 返回 <code>*model.StockDetail</code> JSON</strong>，前端 <code>Detail.vue</code> 直接消费（早期返回纯文本是坏的，已修复）</li>
+<li><code>detail.go</code>：<code>GenerateStockDetail(code, forceRefresh)</code> → <code>*model.StockDetail</code> JSON</li>
+<li><code>report.go</code>：<code>GenerateAnalysisReport(forceRefresh)</code></li>
 </ul>
 <h3>strategy（单只信号）</h3>
-<ul>
 <li><code>cost_yield.go</code>：<code>CalculateYoC(avgCost, dps)</code> 成本股息率</li>
-<li><code>DividendStrategy.Analyze</code>：买卖信号（WATCH/BUY/SELL…）</li>
+<li><code>DividendStrategy.Analyze</code>：买卖信号（BUY/SELL/HOLD/WATCH）</li>
 </ul>
-<h3>plan（规划测算，步骤3新增，独立于 strategy）</h3>
-<ul>
-<li><code>compound.go</code>：<code>CompoundSchedule</code> 定投复利模拟（月定投×年数×年化，分红100%复投已内含于复利）</li>
-<li><code>pension.go</code>：<code>PensionPlan</code> 目标倒推所需本金（年分红÷成本股息率5/6/7%）+ <code>RetirementNote</code> 退休提款阶段建议</li>
-<li><code>conversion.go</code>：<code>CompareStocks</code> 个股多维对比（含 YoC）+ <code>RealEstateToEquity</code> 房产→股权现金流对比</li>
+<h3>plan（规划测算 — CLI 独占，GUI 已移除对应页面）</h3>
+<li><code>compound.go</code>：<code>CompoundSchedule</code> 定投复利模拟</li>
+<li><code>pension.go</code>：<code>PensionPlan</code> 目标倒推 + <code>RetirementNote</code></li>
+<li><code>conversion.go</code>：<code>CompareStocks</code> + <code>RealEstateToEquity</code></li>
+<li><strong>说明</strong>：GUI 端已移除养老测算（/pension）和资产转换（/conversion）页面及后端方法（GetPension/CompareStocks/RealEstateToEquity），但 CLI 仍保留 <code>pension</code>/<code>compare</code> 子命令调用 <code>plan</code> 包。Dashboard 的退休金进度条已覆盖养老测算的核心需求。</li>
 </ul>
-<h3>fund（资金监控）</h3>
-<ul>
-<li><code>Monitor.BuildPool</code>：统一计算持仓市值/成本/盈亏/最大仓位</li>
+<h3>fund（资金监控 + 建议引擎）</h3>
+<li><code>Monitor.BuildPool</code>：持仓市值/成本/盈亏/最大仓位</li>
+<li><code>Monitor.GenerateHoldingRecommendations</code>：对每只持仓产出 <code>ActionAdvice</code>（买/卖/持 + 金额 + 理由 + 约束），复用 <code>divStrategy.Analyze</code> + <code>gridStrategy.Analyze</code></li>
 </ul>
-<h3>cli（命令入口）</h3>
-<ul>
-<li><code>commands.go</code>：分发 add/list/analyze/detail/pension/compare/yoc/config…</li>
-<li><code>cmd_*.go</code>：各子命令；<code>--refresh</code> 解析；帮助用 <code>fmt.Print</code> 输出（避免「年化%」被当格式符）</li>
+<h3>cli（命令入口 — CLI 独占）</h3>
+<li><code>commands.go</code>：分发 add/list/analyze/detail/pension/compare/yoc/config/grid/portfolio/fund/calendar/version/help</li>
+<li><code>cmd_pension.go</code>：养老测算 CLI 子命令（GUI 无对应页面）</li>
+<li><code>cmd_compare.go</code>：个股对比 CLI 子命令（GUI 无对应页面）</li>
+<li><code>--refresh</code> 参数：analyze/detail 支持，强制绕过缓存</li>
 </ul>
 <h2>4. GUI 绑定（app.go）</h2>
 <p><code>app.go</code> 是薄胶水层，所有逻辑委托给 internal。</p>
-<h3>统一错误契约（2026-08-03 重构 #2）</h3>
-<ul>
-<li><strong>查询类接口统一返回 <code>(string, error)</code></strong>：成功返回 JSON 字符串，失败返回 <code>("", err)</code>。</li>
-<li>错误经 Wails 转为 <strong>promise rejection</strong>，前端统一在 <code>catch</code> 中处理；不再出现混入 JSON 的
-  <code>{"error": "..."}</code> / <code>{}</code> / Go error 三种混用格式。</li>
-<li>前端 <code>utils/api.parseJSON(str)</code> 统一解析：正常仅 JSON.parse；若残留 <code>{"error":...}</code> 则主动抛错兜底。</li>
-<li>写操作（增删持仓/配置）本来就返回 <code>error</code>，保持一致。</li>
+<h3>统一错误契约（2026-08-03 重构）</h3>
+<li><strong>查询类接口统一返回 <code>(string, error)</code></strong>：成功返回 JSON 字符串，失败返回 <code>("", err)</code></li>
+<li>前端 <code>utils/api.parseJSON(str)</code> 统一解析</li>
 </ul>
-<h3>绑定清单（节选）</h3>
-<ul>
-<li><code>GetStockDetail(code)</code> / <code>RefreshStock(code)</code>：返回 <code>*model.StockDetail</code> JSON（契约对齐 Detail.vue）</li>
-<li><code>GetPortfolio</code> 含 <code>yield_on_cost</code>；<code>GetFundInfo</code> / <code>GetWatchlist</code></li>
-<li><code>GetPension(monthly, invest, years, rate)</code>、<code>CompareStocks(codeA, codeB)</code>、<code>RealEstateToEquity(...)</code></li>
-<li><code>GetCalendar(days)</code>：返回<strong>文本</strong>报告（前端按行解析），不走 JSON</li>
-<li><strong><code>GetDividendSummary()</code>（#4 新增）</strong>：返回 <code>model.DividendSummary</code> JSON，按自然年汇总分红</li>
-<li><strong>建议引擎（阶段一 MVP）</strong>：<code>GetActionAdvice()</code> 返回 <code>[]model.ActionAdvice</code>（每只持仓的 买/卖/等 + 金额 + 理由，复用 <code>divStrategy</code>+<code>gridStrategy</code>）；<code>GetDashboard()</code> 返回总资产/年化分红/<code>target_annual_dividend</code> 进度条/生命周期阶段 + 行动提示汇总；<code>CorrectHoldingCost(code,totalCost)</code> 以真实投入总额推导精确每股成本</li>
-<li><code>SetLifecycleStage</code> / <code>SetConfig</code>（含 <code>target_annual_dividend</code>） 等</li>
-</ul>
-<p>运行 <code>wails dev</code> / <code>wails build</code> 后，<code>frontend/src/wailsjs/</code> 自动生成绑定（App.js / App.d.ts）。</p>
-<blockquote>
-<p>注：本机 Go 工具链较新时，Wails 旧 <code>x/tools</code> bindgen 可能 panic（unsupported version）；
-此时需手工在 <code>wailsjs/go/main/App.js</code> 补对应 <code>window['go']['main']['App']['X'](...)</code> 一项，用户机 <code>wails dev</code> 会重新生成。</p>
-</blockquote>
+<h3>绑定清单</h3>
+<table><thead><tr><th>方法</th><th>说明</th><th>缓存策略</th></tr></thead><tbody>
+<tr><td>`GetAnalysisReport()`</td><td>分析报告</td><td>走缓存</td></tr>
+<tr><td>`GetStockDetail(code)`</td><td>个股详情 JSON</td><td>走缓存</td></tr>
+<tr><td>`RefreshStock(code)`</td><td>强制刷新（绕过缓存）</td><td>force=true</td></tr>
+<tr><td>`GetPortfolio()`</td><td>持仓列表（含 OriginalCost/YoC）</td><td>走缓存</td></tr>
+<tr><td>`GetActionAdvice()`</td><td>行动提示（买/卖/持+金额+理由）</td><td>走缓存</td></tr>
+<tr><td>`GetDashboard()`</td><td>总览（退休金进度条+行动汇总）</td><td>走缓存</td></tr>
+<tr><td>`CorrectHoldingCost(code, totalCost)`</td><td>一键修正成本</td><td>写 config</td></tr>
+<tr><td>`GetTrackingStocks()`</td><td>跟踪推荐（31 只+实时行情）</td><td>走缓存</td></tr>
+<tr><td>`GetDividendSummary()`</td><td>分红按年汇总</td><td>走缓存</td></tr>
+<tr><td>`GetCalendar(days)`</td><td>股利日历</td><td>文本报告</td></tr>
+<tr><td>`GetConfig()` / `SetConfig(key, value)`</td><td>配置管理</td><td>读写 config</td></tr>
+<tr><td>`AddHolding` / `RemoveHolding`</td><td>持仓增删</td><td>写 config</td></tr>
+<tr><td>`SetLifecycleStage(stage)`</td><td>生命周期阶段</td><td>写 config</td></tr>
+<tr><td>`SearchStock(keyword)`</td><td>股票搜索</td><td>实时</td></tr>
+<tr><td>`GetGridStrategy(code)`</td><td>网格策略</td><td>读 config</td></tr>
+<tr><td>`GetDataDir()` / `GetConfigFile()`</td><td>工具函数</td><td>—</td></tr>
+</tbody></table>
+<blockquote>**已移除的 GUI 方法**：`GetPension`、`CompareStocks`、`RealEstateToEquity`（CLI 仍通过 `internal/cli/` 调用 `plan` 包）</blockquote>
+<h3>手工维护前端绑定</h3>
+<p>本机 Go 工具链较新（go1.26.5），Wails bindgen 用的旧 <code>golang.org/x/tools@v0.1.12</code> 会 panic（<code>unsupported version: 2</code>）。</p>
+<p>新增后端方法后，需手工在 <code>frontend/wailsjs/go/main/App.js</code> 补一项：</p>
+<pre><code>
+export function GetXxx(arg1) {
+  return window[&#x27;go&#x27;][&#x27;main&#x27;][&#x27;App&#x27;][&#x27;GetXxx&#x27;](arg1);
+}
+</code></pre>
 <h2>5. 前端多页面</h2>
-<ul>
-<li>路由（<code>router/index.js</code>）：<code>/</code>（Home）、<code>/dashboard</code>（总览驾驶舱，阶段一 MVP）、<code>/detail/:code</code>（Detail）、<code>/portfolio</code>（Portfolio）、
-  <code>/dividend</code>（分红汇总，#4 新增）、<code>/pension</code>（养老测算）、<code>/conversion</code>（资产转换）、<code>/calendar</code>、<code>/settings</code></li>
-<li>侧栏（<code>Sidebar.vue</code>）：导航菜单</li>
-<li><strong>通用工具</strong>（<code>utils/</code>）：</li>
-<li><code>signal.js</code>：信号→样式/文案映射（#6，<code>SignalBadge</code> 与 <code>Detail.vue</code> 共用，消除重复）</li>
-<li><code>api.js</code>：<code>parseJSON</code> 统一解析 + <code>{"error":...}</code> 兜底（#2）</li>
-<li><code>market.js</code>：<code>isMarketOpen()</code>（A股交易时段）/ <code>isPageVisible()</code> / <code>refreshReason()</code>（#3）</li>
-<li><strong>智能刷新（#3）</strong>：Home / Detail / Portfolio / DividendSummary 的 30s 轮询在触发前先判断
-  <code>isPageVisible()</code> 与 <code>isMarketOpen()</code>，隐藏页或非交易时段（含午休/周末）暂停，并在页头显示状态。</li>
-<li><strong>Detail</strong>：刷新按钮调用 <code>RefreshStock(force)</code>；展示 YoC；信号改用 <code>SignalBadge</code> 组件（#6）</li>
-<li><strong>Portfolio</strong>：平铺展示全部持仓 + YoC 列</li>
-<li><strong>DividendSummary（#4）</strong>：按自然年汇总（历年分红×当前股数），支撑养老现金流评估</li>
-<li><strong>Pension</strong>：目标月分红/月定投/年数/年化 → 倒推本金 + 定投模拟</li>
-<li><strong>Conversion</strong>：房产本金/租售比/股息率 → 现金流倍数对比</li>
+<li>路由（<code>router/index.js</code>）：</li>
+<li><code>/</code> — 分析首页（Home）</li>
+<li><code>/dashboard</code> — 总览驾驶舱（Dashboard）</li>
+<li><code>/detail/:code</code> — 个股详情（Detail）</li>
+<li><code>/portfolio</code> — 持仓管理（Portfolio）</li>
+<li><code>/dividend</code> — 分红汇总（DividendSummary）</li>
+<li><code>/tracking</code> — 跟踪推荐（Tracking） <strong>2026-08-05 新增</strong></li>
+<li><code>/calendar</code> — 股利日历（Calendar）</li>
+<li><code>/settings</code> — 系统设置（Settings）</li>
 </ul>
+<li><strong>已移除的路由</strong>：<code>/pension</code>（养老测算）、<code>/conversion</code>（资产转换）</li>
+</ul>
+<h3>通用工具（utils/）</h3>
+<li><code>signal.js</code>：信号→样式/文案映射（BUY→建议买入、SELL→建议卖出、HOLD→持有、WATCH→关注中）</li>
+<li><code>api.js</code>：<code>parseJSON</code> 统一解析</li>
+<li><code>market.js</code>：<code>isMarketOpen()</code> / <code>isPageVisible()</code> / <code>refreshReason()</code> — 智能刷新控制</li>
+</ul>
+<h3>智能刷新</h3>
+<p>所有页面的 30s 轮询在触发前先判断 <code>isPageVisible()</code> 与 <code>isMarketOpen()</code>，隐藏页或非交易时段暂停。</p>
+<p><strong>手动点击刷新按钮时</strong>：Detail 调用 <code>RefreshStock(code)</code> 强制绕过缓存；其他页面走缓存（靠短 TTL 自动刷新）。</p>
+<h3>术语降噪</h3>
+<p>前端用户可见文案全部中文：成本股息率（非 YoC）、当前股息率、低估/高估阈值、建议买入/卖出/持有/关注中。</p>
+<p>信号键名（BUY/SELL/HOLD/WATCH）仅作为内部标识符，经 signal.js 翻译后显示中文。</p>
 <h2>6. 数据流（CLI 与 GUI 共用）</h2>
-<pre><code>用户(CLI参数 / Vue点击)
+<pre><code>
+用户(CLI参数 / Vue点击)
    │
    ▼
-CLI App.Run  /  GUI App 方法
+CLI cli.App.Run  /  GUI app.go 方法
    │  都调用 internal/*
    ▼
-report.Reporter / plan.* / fund.Monitor / strategy.*
+report.Reporter / fund.Monitor / strategy.* / plan.*
    │
    ▼
-data.EnrichStock (EastMoney 行情 + 24h 缓存, forceRefresh 可绕过)
+data.EnrichStock (EastMoney 行情 + 动态TTL缓存, forceRefresh 可绕过)
    │
    ▼
 model.* (领域模型)  ←→  config.Manager (yaml 持久化)
 </code></pre>
 <h2>7. 构建与运行</h2>
-<blockquote>
-<p>项目根目录：<code>C:\soft\gxsan</code>（CLI/库）；GUI 模块：<code>C:\soft\gxsan\gxsan</code>。
-所有 git 命令在仓库根 <code>C:\soft</code> 执行（gxsan 是其下的子目录）。</p>
-</blockquote>
-<h3>7.1 构建桌面 exe（关键：用 go build，不要用 wails build）</h3>
-<p><code>wails build</code> 在 Go 1.26.5 下会因自带 bindgen（<code>golang.org/x/tools@v0.1.12</code>）读取新版本导出数据而崩溃
-（<code>panic: unsupported version: 2</code>）。<code>main.go</code> 用 <code>//go:embed all:frontend/dist</code> 无条件嵌入前端、Go↔前端绑定
-走运行时反射（<code>Bind: []interface{}{app}</code>），因此<strong>直接用 <code>go build</code> 即可产出完整桌面程序</strong>，无需 wails build。<br>
-<strong>但必须带 Wails 生产标签 <code>-tags desktop,production</code></strong>，否则运行时 Wails 会弹窗报错；<code>-ldflags="-H windowsgui"</code> 可隐藏黑色控制台窗口。</p>
-<pre><code class="language-bash"># 推荐：一键脚本（自动构建前端 + 桌面 exe）
-cd C:\soft\gxsan\gxsan &amp;&amp; build.bat
+<blockquote>项目根目录：`C:\soft\gxsan`（单一 module）。</blockquote>
+<blockquote>所有 git 命令在仓库根 `C:\soft` 执行（gxsan 是其下的子目录）。</blockquote>
+<h3>7.1 构建桌面 exe</h3>
+<pre><code>
+# 前端
+cd C:\soft\gxsan\frontend &amp;&amp; npm run build   # 产物 -&gt; frontend/dist
 
-# 或手动两步
-cd C:\soft\gxsan\gxsan\frontend &amp;&amp; npm run build   # 前端产物 -&gt; frontend/dist
-cd C:\soft\gxsan\gxsan &amp;&amp; go build -tags desktop,production -ldflags="-H windowsgui" -o gxsan.exe .   # 桌面程序 -&gt; gxsan\gxsan\gxsan.exe</code></pre>
-<ul>
-<li><strong>永远不要跑 <code>wails build</code></strong>：Go 1.26.5 下必崩；已用 <code>go build</code> 替代，但要记得加 <code>-tags desktop,production</code>。</li>
-<li>Go 版本：<strong>任意 ≥1.21 均可</strong>，<code>go build</code> 不卡版本；<code>go.mod</code> 里的 <code>go 1.21</code> 仅作语言特性声明。</li>
-<li>新增后端方法（<code>app.go</code> 中导出给前端的函数）后：手工在 <code>frontend/wailsjs/go/main/App.js</code> 补一项导出
-（格式见该文件既有项）；若本机 Go/Wails 工具链兼容，跑 <code>wails dev</code> 会自动重生成该文件覆盖。</li>
-<li>沙箱/CI 注意：<code>npm run build</code> 若遇到「清空 dist 失败」，执行 <code>NODE_OPTIONS="" npm run build</code>
-（避开 safe-delete shim）。用户本机无此问题，正常 <code>npm run build</code> 即可。</li>
+# 后端（必须加 -tags production）
+cd C:\soft\gxsan &amp;&amp; go build -tags production -ldflags=&quot;-H windowsgui&quot; -o gxsan.exe .
+# 沙箱环境需加 GOSUMDB=off -mod=mod
+</code></pre>
+<li><strong>必须加 <code>-tags production</code></strong>：Wails v2.5.0 无 tag 时走 <code>app_default_windows.go</code> stub 弹错误窗。真正的 build tag 只有 <code>dev</code>/<code>production</code>/<code>debug</code>/<code>bindings</code>，没有 <code>desktop</code>。</li>
+<li><code>-ldflags="-H windowsgui"</code> 隐藏黑色控制台窗口（GUI 模式）。</li>
+<li>产物 <code>gxsan.exe</code>（约 15.5MB），双击=GUI，命令行带子命令=CLI。</li>
+<li><strong>永远不要跑 <code>wails build</code></strong>：Go 1.26.5 下 bindgen 必崩（<code>panic: unsupported version: 2</code>）。</li>
 </ul>
 <h3>7.2 CLI 构建与校验</h3>
-<pre><code class="language-bash">cd C:\soft\gxsan &amp;&amp; go build ./...          # 编译全部包（含 internal/plan 单测）
+<pre><code>
+cd C:\soft\gxsan &amp;&amp; go build ./...               # 编译全部包
 cd C:\soft\gxsan &amp;&amp; go test ./internal/plan/...   # 跑规划测算单元测试
-cd C:\soft\gxsan\gxsan\frontend &amp;&amp; npm run build  # 仅前端构建校验</code></pre>
+cd C:\soft\gxsan\frontend &amp;&amp; npm run build        # 前端构建校验
+</code></pre>
 <h3>7.3 分发与 WebView2</h3>
-<ul>
-<li>gxsan 桌面端基于 Wails v2，强依赖系统 <strong>WebView2 Runtime</strong>。现代 Win10/11 大多已预装，双击 <code>gxsan.exe</code> 即可。</li>
-<li><strong>标准分发物只发 <code>gxsan.exe</code></strong>（Fixed Version 约 150MB 太重，不捆绑）。</li>
-<li>目标机若提示缺 WebView2：
-<ol>
-<li>安装 <a href="https://developer.microsoft.com/en-us/microsoft-edge/webview2/">WebView2 Runtime</a>；或</li>
-<li>单独取便携包 <code>webview2/&lt;版本&gt;/</code> 文件夹，用 <code>launch-portable.bat</code>（设 <code>WEBVIEW2_BROWSER_EXECUTABLE_FOLDER</code>）
-启动。仓库内仅提供 <code>launch-portable.bat</code> 模板，不含 150MB 文件夹（已 gitignore <code>webview2/</code>）。</li>
-</ol>
-</li>
-<li>配置与数据默认在用户主目录 <code>~/.gxsan/</code>；<code>gxsan.exe</code> 可随意拷贝到其他机器/目录，与自身位置无关。</li>
+<li>gxsan 桌面端基于 Wails v2，强依赖系统 <strong>WebView2 Runtime</strong>。现代 Win10/11 大多已预装。</li>
+<li>配置与数据默认在用户主目录 <code>~/.gxsan/</code>；<code>gxsan.exe</code> 可随意拷贝到其他机器/目录。</li>
 </ul>
-</body></html>
+</body>
+</html>

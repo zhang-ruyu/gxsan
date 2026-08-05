@@ -130,6 +130,18 @@
           <p>暂无持仓，先去「持仓管理」添加</p>
         </div>
       </div>
+
+      <!-- 推荐关注入口 -->
+      <div class="card tracking-link-card" @click="goToTracking">
+        <div class="tracking-link-content">
+          <span class="tracking-link-icon"> </span>
+          <div>
+            <div class="tracking-link-title">还没买的标的？看看跟踪推荐</div>
+            <div class="tracking-link-desc">31 只推荐标的按 7 大分类展示，含 skill 静态数据 + 实时行情</div>
+          </div>
+          <span class="tracking-link-arrow">→</span>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -178,6 +190,9 @@ export default {
   methods: {
     formatNumber(num) {
       return Number(num || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+    },
+    goToTracking() {
+      this.$router.push('/tracking')
     },
     async refreshData() {
       this.error = null
@@ -297,5 +312,45 @@ export default {
   margin-top: 4px;
   color: #e8590c;
   font-size: 12px;
+}
+
+.tracking-link-card {
+  cursor: pointer;
+  margin-top: 16px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.tracking-link-card:hover {
+  border-color: #6366f1;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.12);
+}
+
+.tracking-link-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 0;
+}
+
+.tracking-link-icon {
+  font-size: 24px;
+}
+
+.tracking-link-title {
+  font-weight: 600;
+  font-size: 15px;
+  color: #4f46e5;
+}
+
+.tracking-link-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.tracking-link-arrow {
+  margin-left: auto;
+  font-size: 18px;
+  color: #6366f1;
 }
 </style>
