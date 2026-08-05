@@ -12,7 +12,6 @@ import (
 	"github.com/user/gxsan/internal/data"
 	"github.com/user/gxsan/internal/fund"
 	"github.com/user/gxsan/internal/model"
-	"github.com/user/gxsan/internal/plan"
 	"github.com/user/gxsan/internal/report"
 	"github.com/user/gxsan/internal/strategy"
 )
@@ -317,57 +316,33 @@ func (a *App) GetGridStrategy(code string) (string, error) {
 	}), nil
 }
 
-// ========== 成本股息率(YoC) 辅助 ==========
+// ========== 跟踪推荐 ==========
 
-// holdingYoC 计算某持仓的成本股息率（无持仓返回0）
-func holdingYoC(cfg *model.Config, code string, s *model.Stock) float64 {
-	for _, h := range cfg.Portfolio {
-		if h.Code == code && h.AvgCost > 0 {
-			return data.CalculateDividendYield(h.AvgCost, s.DividendPerShare)
+// GetTrackingStocks 获取跟踪推荐股票列表（skill 推荐池 + 实时行情）
+// 返回按主流分类分组的股票列表，每只股票包含 skill 静态数据 + 实时价格/股息率。
+func (a *App) GetTrackingStocks() (string, error) {
+	codes := model.TrackingAllCodes()
+	stocks := a.fetcher.EnrichStocks(a.cache, codes, false)
+
+	// 深拷贝 categories 并填充实时数据
+	categories := make([]model.TrackingCategory, len(model.TrackingCategories))
+	for i, cat := range model.TrackingCategories {
+		stocksCopy := make([]model.TrackingStock, len(cat.Stocks))
+		for j, s := range cat.Stocks {
+			stocksCopy[j] = s
+			if live, ok := stocks[s.Code]; ok {
+				stocksCopy[j].Price = live.Price
+				stocksCopy[j].CurrentYield = live.DividendYield
+				stocksCopy[j].DividendPerShare = live.DividendPerShare
+			}
+		}
+		categories[i] = model.TrackingCategory{
+			Name:   cat.Name,
+			Stocks: stocksCopy,
 		}
 	}
-	return 0
-}
 
-// ========== 养老测算 ==========
-
-// GetPension 养老现金流测算（目标倒推 + 定投复利模拟 + 退休提款）
-// 参数: monthly=目标月分红, invest=月定投, years=年数, rate=年化收益率(%)
-func (a *App) GetPension(monthly, invest float64, years int, rate float64) (string, error) {
-	r := rate / 100
-	out := map[string]interface{}{
-		"monthly":          monthly,
-		"invest":           invest,
-		"years":            years,
-		"rate":             r,
-		"lifecycle_stage":  model.LifecycleStageName(a.configMgr.Config.LifecycleStage),
-		"plan":             plan.PensionPlan(monthly, []float64{0.05, 0.06, 0.07}),
-		"schedule":         plan.CompoundSchedule(invest, years, r),
-		"retirement_note":  plan.RetirementNote(a.configMgr.Config.LifecycleStage),
-	}
-	return toJSON(out), nil
-}
-
-// ========== 资产转换 / 个股对比 ==========
-
-// CompareStocks 两只股票多维对比
-func (a *App) CompareStocks(codeA, codeB string) (string, error) {
-	stocks := a.fetcher.EnrichStocks(a.cache, []string{codeA, codeB}, false)
-	sa, okA := stocks[codeA]
-	sb, okB := stocks[codeB]
-	if !okA || !okB {
-		return "", fmt.Errorf("获取股票失败 A=%s B=%s", codeA, codeB)
-	}
-	r := plan.CompareStocks(sa, sb,
-		holdingYoC(a.configMgr.Config, codeA, sa),
-		holdingYoC(a.configMgr.Config, codeB, sb))
-	return toJSON(r), nil
-}
-
-// RealEstateToEquity 房产→红利股权现金流对比
-// 参数: principal=本金, reYield=租售比(%), eqYield=红利股息率(%)
-func (a *App) RealEstateToEquity(principal, reYield, eqYield float64) (string, error) {
-	return toJSON(plan.RealEstateToEquity(principal, reYield/100, eqYield/100)), nil
+	return toJSON(categories), nil
 }
 
 // ========== 分红汇总 ==========

@@ -21,13 +21,9 @@
         <span class="icon"> </span>
         <span>分红汇总</span>
       </router-link>
-      <router-link to="/pension" class="nav-item" active-class="active">
+      <router-link to="/tracking" class="nav-item" active-class="active">
         <span class="icon"> </span>
-        <span>养老测算</span>
-      </router-link>
-      <router-link to="/conversion" class="nav-item" active-class="active">
-        <span class="icon"> </span>
-        <span>资产转换</span>
+        <span>跟踪推荐</span>
       </router-link>
       <router-link to="/calendar" class="nav-item" active-class="active">
         <span class="icon"> </span>

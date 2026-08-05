@@ -5,8 +5,6 @@ export function AddHolding(arg1:string,arg2:string,arg3:number,arg4:number):Prom
 
 export function AddWatchlist(arg1:string,arg2:string,arg3:number):Promise<void>;
 
-export function CompareStocks(arg1:string,arg2:string):Promise<string>;
-
 export function CorrectHoldingCost(arg1:string,arg2:number):Promise<void>;
 
 export function GetActionAdvice():Promise<string>;
@@ -27,15 +25,13 @@ export function GetFundInfo():Promise<string>;
 
 export function GetGridStrategy(arg1:string):Promise<string>;
 
-export function GetPension(arg1:number,arg2:number,arg3:number,arg4:number):Promise<string>;
-
 export function GetPortfolio():Promise<string>;
 
 export function GetStockDetail(arg1:string):Promise<string>;
 
-export function GetWatchlist():Promise<string>;
+export function GetTrackingStocks():Promise<string>;
 
-export function RealEstateToEquity(arg1:number,arg2:number,arg3:number):Promise<string>;
+export function GetWatchlist():Promise<string>;
 
 export function RefreshStock(arg1:string):Promise<string>;
 

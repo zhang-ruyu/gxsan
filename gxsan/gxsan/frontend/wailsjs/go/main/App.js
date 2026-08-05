@@ -10,10 +10,6 @@ export function AddWatchlist(arg1, arg2, arg3) {
   return window['go']['main']['App']['AddWatchlist'](arg1, arg2, arg3);
 }
 
-export function CompareStocks(arg1, arg2) {
-  return window['go']['main']['App']['CompareStocks'](arg1, arg2);
-}
-
 export function CorrectHoldingCost(arg1, arg2) {
   return window['go']['main']['App']['CorrectHoldingCost'](arg1, arg2);
 }
@@ -58,10 +54,6 @@ export function GetGridStrategy(arg1) {
   return window['go']['main']['App']['GetGridStrategy'](arg1);
 }
 
-export function GetPension(arg1, arg2, arg3, arg4) {
-  return window['go']['main']['App']['GetPension'](arg1, arg2, arg3, arg4);
-}
-
 export function GetPortfolio() {
   return window['go']['main']['App']['GetPortfolio']();
 }
@@ -70,12 +62,12 @@ export function GetStockDetail(arg1) {
   return window['go']['main']['App']['GetStockDetail'](arg1);
 }
 
-export function GetWatchlist() {
-  return window['go']['main']['App']['GetWatchlist']();
+export function GetTrackingStocks() {
+  return window['go']['main']['App']['GetTrackingStocks']();
 }
 
-export function RealEstateToEquity(arg1, arg2, arg3) {
-  return window['go']['main']['App']['RealEstateToEquity'](arg1, arg2, arg3);
+export function GetWatchlist() {
+  return window['go']['main']['App']['GetWatchlist']();
 }
 
 export function RefreshStock(arg1) {
