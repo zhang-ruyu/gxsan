@@ -20,12 +20,6 @@
     </div>
 
     <div v-else>
-      <!-- 数据截止提示 -->
-      <div class="data-notice">
-        <span class="notice-icon"> </span>
-        <span>静态数据（股息率/逻辑/风险/建议）截止 <strong>2026年7月25日</strong>，源自 skill 推荐池。实时行情来自东方财富，交易时段每 30 秒自动刷新。</span>
-      </div>
-
       <!-- 汇总统计 -->
       <div class="summary-stats">
         <div class="stat-card">
@@ -35,10 +29,6 @@
         <div class="stat-card">
           <div class="stat-value">{{ categories.length }}</div>
           <div class="stat-label">分类</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value text-green">{{ undervaluedCount }}</div>
-          <div class="stat-label">实时股息率 ≥ skill 值</div>
         </div>
         <div class="stat-card">
           <div class="stat-value text-orange">{{ liveCount }}</div>
@@ -67,8 +57,7 @@
         <div v-if="expandedCategories.has(cat.name)" class="category-body">
           <div class="stock-grid">
             <div v-for="stock in cat.stocks" :key="stock.code"
-                 class="stock-card"
-                 :class="{ 'undervalued': isUndervalued(stock), 'clickable': true }"
+                 class="stock-card clickable"
                  @click="goToDetail(stock.code)">
               <!-- 卡片头部 -->
               <div class="stock-header">
@@ -81,7 +70,6 @@
                 <span class="badge" :class="stock.asset_type === '弱周期' ? 'badge-blue' : 'badge-orange'">
                   {{ stock.asset_type }}
                 </span>
-                <span class="badge badge-gray">skill: {{ stock.skill_yield }}</span>
               </div>
 
               <!-- 实时行情 -->
@@ -89,7 +77,7 @@
                 <span class="price-label">现价</span>
                 <span class="price-value">¥{{ formatPrice(stock.price) }}</span>
                 <span class="yield-label">实时股息率</span>
-                <span class="yield-value" :class="yieldClass(stock)">
+                <span class="yield-value">
                   {{ stock.current_yield.toFixed(2) }}%
                 </span>
               </div>
@@ -122,8 +110,8 @@
 
       <!-- 底部说明 -->
       <div class="footer-note">
-        <p>数据来源：微信公众号「分红养老之路」（森哥）实战周记 | 数据截止：2026年7月25日</p>
-        <p class="text-muted small">点击股票卡片可进入详情页查看更多分析。实时行情来自东方财富，交易时段每 30 秒自动刷新。</p>
+        <p>投资逻辑/风险/建议源自森哥「分红养老之路」实战周记 | 价格和股息率为实时行情，交易时段每 30 秒自动刷新</p>
+        <p class="text-muted small">点击股票卡片可进入详情页查看更多分析</p>
       </div>
     </div>
   </div>
@@ -161,15 +149,6 @@ export default {
       }
       return n
     },
-    undervaluedCount() {
-      let n = 0
-      for (const cat of this.categories) {
-        for (const s of cat.stocks) {
-          if (this.isUndervalued(s)) n++
-        }
-      }
-      return n
-    },
     displayedCategories() {
       if (this.activeCategory === 'all') return this.categories
       return this.categories.filter(c => c.name === this.activeCategory)
@@ -178,15 +157,6 @@ export default {
   methods: {
     formatPrice(num) {
       return Number(num || 0).toFixed(2)
-    },
-    isUndervalued(stock) {
-      if (stock.current_yield <= 0) return false
-      const skillNum = parseFloat(stock.skill_yield.replace(/[~%+]/g, ''))
-      if (isNaN(skillNum)) return false
-      return stock.current_yield >= skillNum
-    },
-    yieldClass(stock) {
-      return this.isUndervalued(stock) ? 'text-green' : ''
     },
     goToDetail(code) {
       this.$router.push(`/detail/${code}`)
@@ -327,10 +297,6 @@ export default {
   box-shadow: 0 2px 8px rgba(99, 102, 241, 0.15);
 }
 
-.stock-card.undervalued {
-  border-left: 3px solid var(--success-color);
-}
-
 .stock-header {
   display: flex;
   justify-content: space-between;
@@ -369,11 +335,6 @@ export default {
 .badge-orange {
   background: #fff4e6;
   color: #e8590c;
-}
-
-.badge-gray {
-  background: #f1f5f9;
-  color: #64748b;
 }
 
 .stock-price-row {
@@ -433,23 +394,6 @@ export default {
 
 .info-value {
   flex: 1;
-}
-
-.data-notice {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
-  margin-bottom: 16px;
-  background: #fffbeb;
-  border: 1px solid #fed7aa;
-  border-radius: 8px;
-  font-size: 13px;
-  color: #92400e;
-}
-
-.notice-icon {
-  font-size: 16px;
 }
 
 .footer-note {

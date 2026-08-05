@@ -127,7 +127,7 @@
               <div class="ty-name">{{ s.name }}</div>
               <div class="ty-code">{{ s.code }}</div>
               <div class="ty-yield" :class="s.current_yield >= 5 ? 'text-red' : ''">
-                {{ s.current_yield > 0 ? s.current_yield.toFixed(2) + '%' : s.skill_yield }}
+                {{ s.current_yield > 0 ? s.current_yield.toFixed(2) + '%' : '—' }}
               </div>
               <div class="ty-type" :class="s.asset_type === '弱周期' ? 'tag-weak' : 'tag-strong'">
                 {{ s.asset_type }}
