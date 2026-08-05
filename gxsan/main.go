@@ -12,6 +12,7 @@ import (
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
+	"github.com/wailsapp/wails/v2/pkg/options/windows"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
 	"github.com/user/gxsan/internal/cli"
@@ -62,6 +63,12 @@ func main() {
 func runGUI() {
 	app := NewApp()
 
+	// WebView2 固定版运行时：如果 exe 同目录下有 webview2/ 目录则使用，否则回退系统 WebView2
+	var winOpts *windows.Options
+	if _, err := os.Stat("webview2"); err == nil {
+		winOpts = &windows.Options{WebviewBrowserPath: "webview2"}
+	}
+
 	err := wails.Run(&options.App{
 		Title:     "股息三 v1.0.0",
 		Width:     1280,
@@ -72,6 +79,7 @@ func runGUI() {
 			Assets: assets,
 		},
 		BackgroundColour: &options.RGBA{R: 245, G: 247, B: 250, A: 1},
+		Windows:          winOpts,
 		OnStartup:        app.startup,
 		OnDomReady: func(ctx context.Context) {
 			go func() {
