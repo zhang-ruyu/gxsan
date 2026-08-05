@@ -23,6 +23,14 @@ go.work.sum
 
 # 依赖目录
 vendor/
+node_modules/
+
+# 前端构建产物（可从源码重新生成）
+frontend/dist/
+
+# Wails 构建产物
+*.syso
+build/bin/
 
 # IDE
 .idea/
