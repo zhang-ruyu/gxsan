@@ -42,6 +42,10 @@ export function GetDataDir() {
   return window['go']['main']['App']['GetDataDir']();
 }
 
+export function ClearCache() {
+  return window['go']['main']['App']['ClearCache']();
+}
+
 export function GetDividendSummary() {
   return window['go']['main']['App']['GetDividendSummary']();
 }

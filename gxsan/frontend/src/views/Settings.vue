@@ -53,6 +53,20 @@
         </div>
       </div>
 
+      <!-- 缓存管理 -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">缓存管理</span>
+        </div>
+        <div class="form-group">
+          <p class="form-hint">行情缓存为本地文件，默认交易时段每 3 分钟、非交易时段每 8 小时自动刷新。若持仓页长期停在旧价或出现"行情获取失败"，点此清空后重新打开页面即可强制重新拉取，无需去文件夹手动删文件。</p>
+          <button class="btn btn-secondary" :disabled="clearing" @click="clearCache">
+            {{ clearing ? '清空中...' : '清空行情缓存' }}
+          </button>
+          <span v-if="clearMsg" class="form-hint" style="color:#2e7d32;">{{ clearMsg }}</span>
+        </div>
+      </div>
+
       <!-- 监控列表 -->
       <div class="card">
         <div class="card-header">
@@ -112,7 +126,7 @@
 </template>
 
 <script>
-import { GetConfig, SetConfig, GetFundInfo, SetAvailableFund, GetWatchlist, AddWatchlist, RemoveWatchlist, UpdateWatchlist } from '../../wailsjs/go/main/App'
+import { GetConfig, SetConfig, GetFundInfo, SetAvailableFund, GetWatchlist, AddWatchlist, RemoveWatchlist, UpdateWatchlist, ClearCache } from '../../wailsjs/go/main/App'
 import { parseJSON } from '../utils/api'
 
 export default {
@@ -133,6 +147,8 @@ export default {
       },
       watchlist: [],
       showModal: false,
+      clearing: false,
+      clearMsg: '',
       isEditing: false,
       editingCode: '',
       formData: {
@@ -225,6 +241,18 @@ export default {
           alert('删除失败: ' + error.message)
         }
       }
+    },
+    async clearCache() {
+      if (!confirm('确定清空本地行情缓存吗？清空后需重新拉取行情数据。')) return
+      this.clearing = true
+      this.clearMsg = ''
+      try {
+        const msg = await ClearCache()
+        this.clearMsg = msg
+      } catch (error) {
+        alert('清空失败: ' + error.message)
+      }
+      this.clearing = false
     }
   },
   mounted() {

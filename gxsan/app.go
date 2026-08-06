@@ -308,6 +308,19 @@ func (a *App) GetDataDir() string {
 	return a.configMgr.DataPath
 }
 
+// ClearCache 清空行情缓存（删除本地所有缓存 json）。
+// 当缓存出现脏数据（如历史遗留的 0 价）且短 TTL 尚未过期时，可一键清理强制重抓，
+// 不必再让用户去文件系统手动删 json（CLI 路径）。
+func (a *App) ClearCache() (string, error) {
+	if a.cache == nil {
+		return "", fmt.Errorf("缓存未初始化")
+	}
+	if err := a.cache.Clear(); err != nil {
+		return "", err
+	}
+	return "行情缓存已清空，重新打开持仓/跟踪页或点击刷新即可拉取最新行情", nil
+}
+
 // GetConfigFile 获取配置文件路径
 func (a *App) GetConfigFile() string {
 	homeDir, _ := os.UserHomeDir()
