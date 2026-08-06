@@ -45,13 +45,13 @@
               <td>{{ stock.name }}</td>
               <td>{{ stock.shares }}</td>
               <td>¥{{ fmtCost(stock.avg_cost) }}</td>
-              <td>¥{{ stock.price.toFixed(2) }}</td>
+              <td>¥{{ formatNumber(stock.price) }}</td>
               <td>¥{{ formatNumber(stock.market_value) }}</td>
               <td :class="stock.profit >= 0 ? 'text-green' : 'text-red'">
                 ¥{{ formatNumber(stock.profit) }}
               </td>
               <td :class="stock.profit_pct >= 0 ? 'text-green' : 'text-red'">
-                {{ stock.profit_pct.toFixed(2) }}%
+                {{ formatNumber(stock.profit_pct) }}%
               </td>
               <td :class="stock.yield_on_cost > 0 ? 'text-orange' : ''">
                 {{ stock.yield_on_cost > 0 ? stock.yield_on_cost.toFixed(2) + '%' : '-' }}
@@ -188,8 +188,8 @@ export default {
           GetActionAdvice()
         ])
         console.log('获取到持仓:', portfolioStr)
-        this.holdings = parseJSON(portfolioStr)
-        this.advices = parseJSON(adviceStr)
+        this.holdings = parseJSON(portfolioStr) || []
+        this.advices = parseJSON(adviceStr) || []
         this.lastUpdate = new Date().toLocaleTimeString('zh-CN')
       } catch (error) {
         console.error('获取持仓数据失败:', error)
