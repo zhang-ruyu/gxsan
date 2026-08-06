@@ -92,6 +92,7 @@ export default {
 .title-bar__controls {
   display: flex;
   gap: 2px;
+  margin-left: auto;
   /* 按钮区不可触发拖拽，保证点击生效 */
   --wails-draggable: no-drag;
   -webkit-app-region: no-drag;
