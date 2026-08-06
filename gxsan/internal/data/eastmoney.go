@@ -43,7 +43,13 @@ func (f *EastMoneyFetcher) GetStock(code string) (*model.Stock, error) {
 	secid := getSecID(code)
 	url := fmt.Sprintf("%s?secid=%s&fields=f43,f44,f45,f46,f47,f48,f50,f51,f52,f55,f57,f58,f116,f117,f162,f167,f170", eastMoneyQuoteURL, secid)
 
-	resp, err := f.client.Get(url)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("创建请求失败: %w", err)
+	}
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+	req.Header.Set("Referer", "https://quote.eastmoney.com/")
+	resp, err := f.client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("请求失败: %w", err)
 	}
@@ -74,6 +80,12 @@ func (f *EastMoneyFetcher) GetStock(code string) (*model.Stock, error) {
 
 	if err := json.Unmarshal(body, &result); err != nil {
 		return nil, fmt.Errorf("解析数据失败: %w", err)
+	}
+
+	// 接口偶发返回空 data（限流/校验失败/网络抖动）时 F57 为空且 F43 为 0；
+	// 若不当作失败处理，会被当成"合法 0 价"写入缓存，导致持仓页股价归零。
+	if result.Data.F57 == "" || result.Data.F43 == 0 {
+		return nil, fmt.Errorf("行情返回空数据(代码=%q F43=%.2f): %s", result.Data.F57, result.Data.F43, code)
 	}
 
 	stock := &model.Stock{
@@ -201,7 +213,13 @@ func (f *EastMoneyFetcher) getDividendHistoryBackup(code string) ([]model.Divide
 func (f *EastMoneyFetcher) SearchStock(keyword string) ([]model.StockInfo, error) {
 	url := fmt.Sprintf("%s?input=%s&type=14&token=D43BF722C8E33BDC906FB84D85E326E8&count=10", eastMoneySearchURL, keyword)
 
-	resp, err := f.client.Get(url)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("创建请求失败: %w", err)
+	}
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+	req.Header.Set("Referer", "https://quote.eastmoney.com/")
+	resp, err := f.client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("请求失败: %w", err)
 	}

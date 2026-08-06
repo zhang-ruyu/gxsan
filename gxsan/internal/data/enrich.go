@@ -1,6 +1,7 @@
 package data
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -13,9 +14,18 @@ import (
 // forceRefresh 为 true 时跳过缓存读取，强制重新抓数（用于「随时刷新」）。
 // 内部对「行情」与「分红历史」两个独立 HTTP 请求并发发起，单只更快。
 func (f *EastMoneyFetcher) EnrichStock(cache *Cache, code string, forceRefresh bool) (*model.Stock, error) {
+	// 1) 缓存命中且价格有效 → 直接返回，避免无谓请求
 	if cache != nil && !forceRefresh {
-		if cd, err := cache.Get(code); err == nil && cd.Stock != nil {
+		if cd, err := cache.Get(code); err == nil && cd.Stock != nil && cd.Stock.Price > 0 {
 			return cd.Stock, nil
+		}
+	}
+
+	// 记录旧缓存，供抓取失败时兜底，避免界面股价跳 0
+	var cached *model.Stock
+	if cache != nil {
+		if cd, err := cache.Get(code); err == nil && cd.Stock != nil {
+			cached = cd.Stock
 		}
 	}
 
@@ -38,10 +48,19 @@ func (f *EastMoneyFetcher) EnrichStock(cache *Cache, code string, forceRefresh b
 	}()
 	wg.Wait()
 
-	// 行情是必需的；分红缺失不致命（部分股票可能暂无分红记录）。
-	if stockErr != nil {
-		return nil, stockErr
+	// 行情是必需的：抓取失败或返回空数据(price=0) 时，若有有效旧缓存则兜底返回，
+	// 否则报错（前端按"行情获取失败"提示，而不是显示 0）。
+	if stockErr != nil || stock == nil || stock.Price <= 0 {
+		if cached != nil && cached.Price > 0 {
+			return cached, nil
+		}
+		if stockErr != nil {
+			return nil, stockErr
+		}
+		return nil, fmt.Errorf("行情数据无效(price=0): %s", code)
 	}
+
+	// 分红补全（缺失不致命）
 	if divErr == nil && len(dividends) > 0 {
 		stock.DividendPerShare = annualDividend(dividends)
 		stock.LastDivDate = dividends[0].Date
