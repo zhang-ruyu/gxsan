@@ -41,63 +41,88 @@ func getSecID(code string) string {
 // GetStock 获取股票实时数据
 func (f *EastMoneyFetcher) GetStock(code string) (*model.Stock, error) {
 	secid := getSecID(code)
-	url := fmt.Sprintf("%s?secid=%s&fields=f43,f44,f45,f46,f47,f48,f50,f51,f52,f55,f57,f58,f116,f117,f162,f167,f170", eastMoneyQuoteURL, secid)
+	apiURL := fmt.Sprintf("%s?secid=%s&fields=f43,f44,f45,f46,f47,f48,f50,f51,f52,f55,f57,f58,f116,f117,f162,f167,f170", eastMoneyQuoteURL, secid)
 
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("创建请求失败: %w", err)
-	}
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
-	req.Header.Set("Referer", "https://quote.eastmoney.com/")
-	resp, err := f.client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("请求失败: %w", err)
-	}
-	defer resp.Body.Close()
+	// 行情接口偶发限流/校验失败，最多重试 3 次（指数退避），大幅提升成功率。
+	var lastErr error
+	for attempt := 0; attempt < 3; attempt++ {
+		if attempt > 0 {
+			time.Sleep(time.Duration(attempt) * 300 * time.Millisecond)
+		}
+		req, err := http.NewRequest("GET", apiURL, nil)
+		if err != nil {
+			return nil, fmt.Errorf("创建请求失败: %w", err)
+		}
+		req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+		req.Header.Set("Referer", "https://quote.eastmoney.com/")
+		req.Header.Set("Accept", "*/*")
+		req.Header.Set("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")
+		req.Header.Set("Connection", "keep-alive")
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("读取响应失败: %w", err)
-	}
+		resp, err := f.client.Do(req)
+		if err != nil {
+			lastErr = fmt.Errorf("请求失败(第%d次): %w", attempt+1, err)
+			continue
+		}
+		body, err := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if err != nil {
+			lastErr = fmt.Errorf("读取响应失败(第%d次): %w", attempt+1, err)
+			continue
+		}
 
-	var result struct {
-		Data struct {
-			F43  float64 `json:"f43"`  // 最新价
-			F44  float64 `json:"f44"`  // 最高
-			F45  float64 `json:"f45"`  // 最低
-			F46  float64 `json:"f46"`  // 开盘价
-			F47  float64 `json:"f47"`  // 成交量
-			F48  float64 `json:"f48"`  // 成交额
-			F57  string  `json:"f57"`  // 代码
-			F58  string  `json:"f58"`  // 名称
-			F116 float64 `json:"f116"` // 总市值
-			F117 float64 `json:"f117"` // 流通市值
-			F162 float64 `json:"f162"` // 市盈率
-			F167 float64 `json:"f167"` // 市净率
-			F170 float64 `json:"f170"` // 涨跌幅
-		} `json:"data"`
-	}
+		// 容错解析：先整体解析；若某个字段类型异常导致整体失败，再用 RawMessage 单独取关键字段。
+		var parsed struct {
+			Data struct {
+				F43  float64 `json:"f43"`
+				F57  string  `json:"f57"`
+				F58  string  `json:"f58"`
+				F162 float64 `json:"f162"`
+				F167 float64 `json:"f167"`
+				F170 float64 `json:"f170"`
+			} `json:"data"`
+		}
+		if err := json.Unmarshal(body, &parsed); err != nil {
+			var raw struct {
+				Data json.RawMessage `json:"data"`
+			}
+			if jerr := json.Unmarshal(body, &raw); jerr != nil {
+				bs := string(body)
+				if len(bs) > 200 {
+					bs = bs[:200]
+				}
+				lastErr = fmt.Errorf("解析数据失败(第%d次): %w | body=%s", attempt+1, err, bs)
+				continue
+			}
+			var d struct {
+				F43 float64 `json:"f43"`
+				F57 string  `json:"f57"`
+				F58 string  `json:"f58"`
+			}
+			if jerr := json.Unmarshal(raw.Data, &d); jerr != nil {
+				lastErr = fmt.Errorf("解析行情字段失败(第%d次): %w", attempt+1, jerr)
+				continue
+			}
+			parsed.Data.F43, parsed.Data.F57, parsed.Data.F58 = d.F43, d.F57, d.F58
+		}
 
-	if err := json.Unmarshal(body, &result); err != nil {
-		return nil, fmt.Errorf("解析数据失败: %w", err)
-	}
+		// 接口偶发返回空 data（限流/校验失败/网络抖动）时 F57 为空且 F43 为 0；
+		// 若不当作失败处理，会被当成"合法 0 价"写入缓存，导致持仓页股价归零。
+		if parsed.Data.F57 == "" || parsed.Data.F43 == 0 {
+			lastErr = fmt.Errorf("行情返回空数据(第%d次, 代码=%q F43=%.2f): %s", attempt+1, parsed.Data.F57, parsed.Data.F43, code)
+			continue
+		}
 
-	// 接口偶发返回空 data（限流/校验失败/网络抖动）时 F57 为空且 F43 为 0；
-	// 若不当作失败处理，会被当成"合法 0 价"写入缓存，导致持仓页股价归零。
-	if result.Data.F57 == "" || result.Data.F43 == 0 {
-		return nil, fmt.Errorf("行情返回空数据(代码=%q F43=%.2f): %s", result.Data.F57, result.Data.F43, code)
+		return &model.Stock{
+			Code:   parsed.Data.F57,
+			Name:   parsed.Data.F58,
+			Price:  parsed.Data.F43 / 100, // 东方财富价格单位是分
+			Change: parsed.Data.F170 / 100,
+			PE:     parsed.Data.F162 / 100,
+			PB:     parsed.Data.F167 / 100,
+		}, nil
 	}
-
-	stock := &model.Stock{
-		Code:   result.Data.F57,
-		Name:   result.Data.F58,
-		Price:  result.Data.F43 / 100, // 东方财富价格单位是分
-		Change: result.Data.F170 / 100,
-		PE:     result.Data.F162 / 100,
-		PB:     result.Data.F167 / 100,
-	}
-
-	return stock, nil
+	return nil, lastErr
 }
 
 // GetDividendHistory 获取分红历史

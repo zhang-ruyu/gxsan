@@ -45,7 +45,10 @@
               <td>{{ stock.name }}</td>
               <td>{{ stock.shares }}</td>
               <td>¥{{ fmtCost(stock.avg_cost) }}</td>
-              <td>¥{{ formatNumber(stock.price) }}</td>
+              <td>
+                <span v-if="stock.live">¥{{ formatNumber(stock.price) }}</span>
+                <span v-else class="text-red font-bold">行情获取失败</span>
+              </td>
               <td>¥{{ formatNumber(stock.market_value) }}</td>
               <td :class="stock.profit >= 0 ? 'text-green' : 'text-red'">
                 ¥{{ formatNumber(stock.profit) }}

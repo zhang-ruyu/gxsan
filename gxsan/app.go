@@ -110,24 +110,32 @@ func (a *App) GetPortfolio() (string, error) {
 
 	var items []model.PortfolioItem
 	for _, h := range pool.Holdings {
+		// 行情是否实时取到：rich map 里有这只股票才算拿到价，否则标记为非实时（UI 显示"行情获取失败"）
+		price := h.CurrentPrice
+		live := false
+		if s, ok := stocks[h.Code]; ok {
+			price = s.Price
+			live = true
+		}
 		cost := h.AvgCost * float64(h.Shares)
 		profit := h.MarketValue - cost
 		profitPct := 0.0
 		if cost > 0 {
 			profitPct = (profit / cost) * 100
 		}
-	items = append(items, model.PortfolioItem{
-		Code:         h.Code,
-		Name:         h.Name,
-		Shares:       h.Shares,
-		AvgCost:      h.AvgCost,
-		OriginalCost: h.OriginalCost,
-		Price:        h.CurrentPrice,
-		MarketValue:  h.MarketValue,
-		Profit:       profit,
-		ProfitPct:    profitPct,
-		YieldOnCost:  h.YieldOnCost,
-	})
+		items = append(items, model.PortfolioItem{
+			Code:         h.Code,
+			Name:         h.Name,
+			Shares:       h.Shares,
+			AvgCost:      h.AvgCost,
+			OriginalCost: h.OriginalCost,
+			Price:        price,
+			MarketValue:  h.MarketValue,
+			Profit:       profit,
+			ProfitPct:    profitPct,
+			YieldOnCost:  h.YieldOnCost,
+			Live:         live,
+		})
 	}
 
 	return toJSON(items), nil

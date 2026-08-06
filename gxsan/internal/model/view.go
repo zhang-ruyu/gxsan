@@ -15,6 +15,7 @@ type PortfolioItem struct {
 	Profit       float64 `json:"profit"`
 	ProfitPct    float64 `json:"profit_pct"`
 	YieldOnCost  float64 `json:"yield_on_cost"` // 成本股息率 YoC
+	Live         bool    `json:"live"`          // 行情是否实时取到（false=本次未取到，UI 显示"行情获取失败"而非静默 0）
 }
 
 // FundInfo 资金信息（GUI 展示用）
