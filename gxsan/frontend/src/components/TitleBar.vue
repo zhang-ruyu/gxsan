@@ -9,14 +9,14 @@
       <button class="win-btn" :title="isFullscreen ? '退出全屏' : '全屏'" @click="toggleFullscreen" aria-label="全屏">
         <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <template v-if="!isFullscreen">
-            <!-- 主流全屏图标：方框 + 右上角直角折线 -->
-            <rect x="6" y="6" width="12" height="12" rx="1.5" />
-            <path d="M13 4 H19 V10" />
+            <!-- 主流全屏图标：两个正方形叠，前面的盖住后面大部分（露出背面左上角） -->
+            <rect x="4" y="4" width="12" height="12" rx="1.5" />
+            <rect x="8" y="8" width="12" height="12" rx="1.5" />
           </template>
           <template v-else>
-            <!-- 退出全屏：方框 + 右上角向内直角折线 -->
-            <rect x="6" y="6" width="12" height="12" rx="1.5" />
-            <path d="M13 8 H17 V12" />
+            <!-- 退出全屏：前面的正方形叠到左下方，露出背面右上角 -->
+            <rect x="8" y="4" width="12" height="12" rx="1.5" />
+            <rect x="4" y="8" width="12" height="12" rx="1.5" />
           </template>
         </svg>
       </button>
