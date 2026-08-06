@@ -81,6 +81,7 @@ type StockDetail struct {
 // 按自然年汇总各持仓分红金额，便于评估分红现金流与养老本金积累。
 type DividendSummary struct {
 	ByYear              []YearDividend    `json:"by_year"`
+	ByStock             []StockDividend   `json:"by_stock"`             // 按单只股票展现（最近一年分红）
 	TotalAnnualDividend float64           `json:"total_annual_dividend"` // 当前持仓年化分红总额
 	TotalMarketValue    float64           `json:"total_market_value"`
 	TotalHoldings       int               `json:"total_holdings"`
@@ -91,6 +92,26 @@ type YearDividend struct {
 	Year          int     `json:"year"`
 	TotalDividend float64 `json:"total_dividend"` // 该年分红总额（各持仓当年每股分红×股数）
 	Holdings      int     `json:"holdings"`       // 参与该年分红的持仓只数
+}
+
+// StockDividendEvent 单笔分红事件（分红汇总页按股票展示用）
+type StockDividendEvent struct {
+	Date     string  `json:"date"`      // 除权除息日 YYYY-MM-DD
+	PerShare float64 `json:"per_share"` // 每股派息（元/股）
+	Per10    float64 `json:"per_10"`    // 每10股派息（元/10股）
+	Per100   float64 `json:"per_100"`   // 每100股派息（元/100股）
+	OverYear bool    `json:"over_year"` // 是否超过一年（有记录但最近一次早于近一年）
+}
+
+// StockDividend 单只股票的分红汇总（分红汇总页按股票展现用）
+type StockDividend struct {
+	Code             string               `json:"code"`
+	Name             string               `json:"name"`
+	Shares           int                  `json:"shares"`
+	MarketValue      float64              `json:"market_value"`
+	HasData          bool                 `json:"has_data"`           // 是否有分红记录
+	RecentDividends  []StockDividendEvent `json:"recent_dividends"`  // 最近一年（或最近一次）分红
+	OlderDividends   []StockDividendEvent `json:"older_dividends"`   // 更早的分红（折叠展示）
 }
 
 // ActionAdvice 单只持仓的行动提示（建议引擎 MVP 输出）

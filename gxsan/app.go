@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"time"
 
 	"github.com/user/gxsan/internal/config"
 	"github.com/user/gxsan/internal/data"
@@ -465,6 +466,10 @@ func (a *App) GetDividendSummary() (string, error) {
 	totalAnnual := 0.0
 	totalMV := 0.0
 
+	now := time.Now()
+	oneYearAgo := now.AddDate(-1, 0, 0)
+	byStock := make([]model.StockDividend, 0, len(holdings))
+
 	for _, h := range holdings {
 		var price, dps float64
 		if s, ok := stocks[h.Code]; ok {
@@ -478,11 +483,13 @@ func (a *App) GetDividendSummary() (string, error) {
 		totalAnnual += annual
 		totalMV += mv
 
-		// 按年汇总：取该持仓的历年分红记录（优先缓存，EnrichStocks 已落盘）
+		// 该持仓的历年分红记录（优先缓存，EnrichStocks 已落盘）
 		var dividends []model.DividendRecord
 		if cd, err := a.cache.Get(h.Code); err == nil {
 			dividends = cd.Dividends
 		}
+
+		// 按年汇总（保留原逻辑）
 		for _, d := range dividends {
 			var y int
 			fmt.Sscanf(d.Date, "%d-", &y)
@@ -500,6 +507,56 @@ func (a *App) GetDividendSummary() (string, error) {
 			}
 			yearCodes[y][h.Code] = true
 		}
+
+		// 按股票展现：构造分红事件并按日期倒序
+		events := make([]model.StockDividendEvent, 0, len(dividends))
+		for _, d := range dividends {
+			if d.Date == "" {
+				continue
+			}
+			perShare := d.Amount
+			events = append(events, model.StockDividendEvent{
+				Date:     d.Date,
+				PerShare: perShare,
+				Per10:    perShare * 10,
+				Per100:   perShare * 100,
+			})
+		}
+		sort.Slice(events, func(i, j int) bool {
+			return events[i].Date > events[j].Date
+		})
+
+		recent := make([]model.StockDividendEvent, 0)
+		older := make([]model.StockDividendEvent, 0)
+		for _, e := range events {
+			t, err := time.Parse("2006-01-02", e.Date)
+			if err != nil {
+				older = append(older, e) // 日期无法解析归为更早
+				continue
+			}
+			if t.After(oneYearAgo) || t.Equal(oneYearAgo) {
+				recent = append(recent, e)
+			} else {
+				older = append(older, e)
+			}
+		}
+		// 近一年无记录但有更早记录：取最近一次展示并标记 over_year
+		if len(recent) == 0 && len(events) > 0 {
+			latest := events[0]
+			latest.OverYear = true
+			recent = []model.StockDividendEvent{latest}
+			older = append([]model.StockDividendEvent{}, events[1:]...)
+		}
+
+		byStock = append(byStock, model.StockDividend{
+			Code:            h.Code,
+			Name:            h.Name,
+			Shares:          h.Shares,
+			MarketValue:     mv,
+			HasData:         len(dividends) > 0,
+			RecentDividends: recent,
+			OlderDividends:  older,
+		})
 	}
 
 	for y, codes := range yearCodes {
@@ -518,6 +575,7 @@ func (a *App) GetDividendSummary() (string, error) {
 
 	summary := model.DividendSummary{
 		ByYear:              yearList,
+		ByStock:             byStock,
 		TotalAnnualDividend: totalAnnual,
 		TotalMarketValue:    totalMV,
 		TotalHoldings:       len(holdings),
