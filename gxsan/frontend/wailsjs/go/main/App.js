@@ -58,10 +58,6 @@ export function GetHoldingGrid(arg1) {
   return window['go']['main']['App']['GetHoldingGrid'](arg1);
 }
 
-export function SaveHoldingGrid(arg1, arg2, arg3) {
-  return window['go']['main']['App']['SaveHoldingGrid'](arg1, arg2, arg3);
-}
-
 export function GetPortfolio() {
   return window['go']['main']['App']['GetPortfolio']();
 }
@@ -90,6 +86,10 @@ export function RemoveWatchlist(arg1) {
   return window['go']['main']['App']['RemoveWatchlist'](arg1);
 }
 
+export function SaveHoldingGrid(arg1, arg2, arg3) {
+  return window['go']['main']['App']['SaveHoldingGrid'](arg1, arg2, arg3);
+}
+
 export function SearchStock(arg1) {
   return window['go']['main']['App']['SearchStock'](arg1);
 }
@@ -112,4 +112,16 @@ export function UpdateHolding(arg1, arg2) {
 
 export function UpdateWatchlist(arg1, arg2, arg3) {
   return window['go']['main']['App']['UpdateWatchlist'](arg1, arg2, arg3);
+}
+
+export function WindowClose() {
+  return window['go']['main']['App']['WindowClose']();
+}
+
+export function WindowMinimise() {
+  return window['go']['main']['App']['WindowMinimise']();
+}
+
+export function WindowToggleFullscreen() {
+  return window['go']['main']['App']['WindowToggleFullscreen']();
 }

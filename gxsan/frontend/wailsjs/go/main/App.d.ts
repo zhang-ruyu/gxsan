@@ -21,9 +21,13 @@ export function GetDashboard():Promise<string>;
 
 export function GetDataDir():Promise<string>;
 
+export function GetDividendSummary():Promise<string>;
+
 export function GetFundInfo():Promise<string>;
 
 export function GetGridStrategy(arg1:string):Promise<string>;
+
+export function GetHoldingGrid(arg1:string):Promise<string>;
 
 export function GetPortfolio():Promise<string>;
 
@@ -39,6 +43,8 @@ export function RemoveHolding(arg1:string):Promise<void>;
 
 export function RemoveWatchlist(arg1:string):Promise<void>;
 
+export function SaveHoldingGrid(arg1:string,arg2:string,arg3:string):Promise<void>;
+
 export function SearchStock(arg1:string):Promise<string>;
 
 export function SetAvailableFund(arg1:number):Promise<void>;
@@ -50,3 +56,9 @@ export function SetLifecycleStage(arg1:number):Promise<void>;
 export function UpdateHolding(arg1:string,arg2:number):Promise<void>;
 
 export function UpdateWatchlist(arg1:string,arg2:string,arg3:number):Promise<void>;
+
+export function WindowClose():Promise<void>;
+
+export function WindowMinimise():Promise<void>;
+
+export function WindowToggleFullscreen():Promise<void>;

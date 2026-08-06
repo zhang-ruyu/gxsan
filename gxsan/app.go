@@ -14,6 +14,7 @@ import (
 	"github.com/user/gxsan/internal/model"
 	"github.com/user/gxsan/internal/report"
 	"github.com/user/gxsan/internal/strategy"
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // App 应用程序主结构体（Wails GUI 后端）。
@@ -607,4 +608,23 @@ func countAdvice(advices []model.ActionAdvice, action string) int {
 // SetLifecycleStage 设置生命周期阶段（1-4）
 func (a *App) SetLifecycleStage(stage int) error {
 	return a.configMgr.SetLifecycleStage(stage)
+}
+
+// WindowMinimise 最小化窗口（供前端标题栏按钮调用）
+func (a *App) WindowMinimise() {
+	runtime.WindowMinimise(a.ctx)
+}
+
+// WindowToggleFullscreen 切换全屏（供前端标题栏按钮调用）
+func (a *App) WindowToggleFullscreen() {
+	if runtime.WindowIsFullscreen(a.ctx) {
+		runtime.WindowUnfullscreen(a.ctx)
+	} else {
+		runtime.WindowFullscreen(a.ctx)
+	}
+}
+
+// WindowClose 关闭窗口（关闭即退出应用）
+func (a *App) WindowClose() {
+	runtime.Quit(a.ctx)
 }

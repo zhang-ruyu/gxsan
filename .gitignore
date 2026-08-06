@@ -11,3 +11,6 @@ Thumbs.db
 *.syso
 *.base
 欢迎.md
+
+# Wails 前端构建缓存（每次 build 变化，不进版本库）
+gxsan/frontend/package.json.md5

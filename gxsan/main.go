@@ -39,9 +39,9 @@ func runGUI() {
 	app := NewApp()
 
 	// WebView2 固定版运行时：如果 exe 同目录下有 webview2/ 目录则使用，否则回退系统 WebView2
-	var winOpts *windows.Options
+	winOpts := &windows.Options{}
 	if _, err := os.Stat("webview2"); err == nil {
-		winOpts = &windows.Options{WebviewBrowserPath: "webview2"}
+		winOpts.WebviewBrowserPath = "webview2"
 	}
 
 	err := wails.Run(&options.App{
@@ -50,6 +50,7 @@ func runGUI() {
 		Height:    800,
 		MinWidth:  1024,
 		MinHeight: 600,
+		Frameless: true, // 无边框：隐藏原生标题栏，改用前端自定义标题栏（左上角 最小化/全屏/关闭）
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
